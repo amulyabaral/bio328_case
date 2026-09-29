@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+PKDECIBF_00098	bla	class A beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	289	297	89.56	52.26	266	WP_109545074.1	class A beta-lactamase	NF033103.1	class A beta-lactamase

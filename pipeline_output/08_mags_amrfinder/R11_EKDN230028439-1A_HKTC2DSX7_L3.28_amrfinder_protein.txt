@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+ODNOFLKP_01137	fosX	FosX/FosE/FosI family fosfomycin resistance hydrolase	core	AMR	AMR	FOSFOMYCIN	FOSFOMYCIN	HMM	135	154	90.91	60.71	140	WP_015860243.1	FosX/FosE/FosI family fosfomycin resistance hydrolase	NF000222.1	FosX/FosE/FosI family fosfomycin resistance hydrolase

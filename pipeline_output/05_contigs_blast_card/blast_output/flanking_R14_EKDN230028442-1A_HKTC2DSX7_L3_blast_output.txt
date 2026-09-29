@@ -1,0 +1,3 @@
+qseqid	sseqid	salltitles	length	pident	evalue	qlen	slen	qstart	qend	sstart	send	length_slen_ratio	flanking_left	flanking_right
+k141_569714	gb|HQ730118.1|+|5174-5507|ARO:3005009|qacE	gb|HQ730118.1|+|5174-5507|ARO:3005009|qacE [Klebsiella pneumoniae] 	333	99.399	7.09e-173	2067	333	144	476	1	333	1	143	1591
+k141_1446806	gb|DQ149925.1|+|188-521|ARO:3005098|qacL	gb|DQ149925.1|+|188-521|ARO:3005098|qacL [Vibrio cholerae] 	292	98.973	5.68e-148	5724	333	1	292	292	1	0.876876876876877	0	5432

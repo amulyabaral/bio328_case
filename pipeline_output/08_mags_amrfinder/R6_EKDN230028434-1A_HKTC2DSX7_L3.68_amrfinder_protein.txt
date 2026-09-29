@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+BMAAJEJJ_00306	vat	Vat family streptogramin A O-acetyltransferase	core	AMR	AMR	STREPTOGRAMIN	STREPTOGRAMIN	HMM	210	221	93.67	63.29	207	WP_005164767.1	Vat family streptogramin A O-acetyltransferase	NF000311.1	Vat family streptogramin A O-acetyltransferase

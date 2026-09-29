@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+FNDHOOFM_01697	blaOXA	class D beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	282	265	96.23	39.08	261	WP_063864118.1	class D beta-lactamase	NF012161.0	class D beta-lactamase

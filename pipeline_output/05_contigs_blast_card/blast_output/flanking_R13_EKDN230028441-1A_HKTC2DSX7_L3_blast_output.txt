@@ -1,0 +1,3 @@
+qseqid	sseqid	salltitles	length	pident	evalue	qlen	slen	qstart	qend	sstart	send	length_slen_ratio	flanking_left	flanking_right
+k141_974895	gb|DQ149925.1|+|188-521|ARO:3005098|qacL	gb|DQ149925.1|+|188-521|ARO:3005098|qacL [Vibrio cholerae] 	333	99.099	9.1e-171	5675	333	4851	5183	333	1	1	4850	492
+k141_845095	gb|U49101.1|+|1490-1838|ARO:3005010|qacEdelta1	gb|U49101.1|+|1490-1838|ARO:3005010|qacEdelta1 [Pseudomonas aeruginosa] 	282	99.291	1.69e-144	2204	348	1669	1950	1	282	0.810344827586207	1668	254

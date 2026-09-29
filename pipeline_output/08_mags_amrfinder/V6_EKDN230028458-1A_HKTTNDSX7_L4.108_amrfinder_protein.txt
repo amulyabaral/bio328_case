@@ -1,0 +1,3 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+AHCPBDKC_01937	blaR1	BlaR1 family beta-lactam sensor/signal transducer	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	347	593	58.35	40.06	347	WP_012705551.1	BlaR1 family beta-lactam sensor/signal transducer	NF000326.1	BlaR1 family beta-lactam sensor/signal transducer
+AHCPBDKC_01938	blaOXA	class D beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	269	267	94.76	44.27	262	WP_003235647.1	class D beta-lactamase	NF012161.0	class D beta-lactamase

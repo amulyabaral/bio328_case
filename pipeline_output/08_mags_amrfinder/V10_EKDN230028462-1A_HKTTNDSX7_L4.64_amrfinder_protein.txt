@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+EEIMPHBM_00119	bla	class A beta-lactamase, subclass A2	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	303	292	100.00	60.07	293	WP_002977989.1	class A beta-lactamase, subclass A2	NF012099.1	class A beta-lactamase, subclass A2

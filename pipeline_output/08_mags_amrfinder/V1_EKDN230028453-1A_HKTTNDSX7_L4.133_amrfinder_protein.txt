@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+FIONLFGN_01526	erm	23S ribosomal RNA methyltransferase Erm	core	AMR	AMR	MACROLIDE	MACROLIDE	HMM	263	257	96.89	48.22	253	WP_007286427.1	23S ribosomal RNA methyltransferase Erm	NF000499.1	23S ribosomal RNA methyltransferase Erm

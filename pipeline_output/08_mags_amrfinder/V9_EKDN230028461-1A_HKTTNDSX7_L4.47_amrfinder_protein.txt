@@ -1,0 +1,4 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+MCGNNGCC_00679	bla	subclass B3 metallo-beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	291	293	98.63	65.74	289	WP_063842707.1	subclass B3 metallo-beta-lactamase	NF033105.1	subclass B3 metallo-beta-lactamase
+MCGNNGCC_01919	blaOXA	class D beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	274	258	95.74	40.62	256	WP_004919358.1	class D beta-lactamase	NF012161.0	class D beta-lactamase
+MCGNNGCC_03963	aac(6')	aminoglycoside 6'-N-acetyltransferase	core	AMR	AMR	AMINOGLYCOSIDE	AMINOGLYCOSIDE	HMM	145	182	78.02	47.18	142	WP_024566461.1	aminoglycoside 6'-N-acetyltransferase	NF043067.1	aminoglycoside 6'-N-acetyltransferase

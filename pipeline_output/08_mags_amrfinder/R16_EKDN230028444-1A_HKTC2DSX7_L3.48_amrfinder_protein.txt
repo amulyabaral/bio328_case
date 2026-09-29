@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+IOCHJAIA_01408	arr	NAD(+)--rifampin ADP-ribosyltransferase	core	AMR	AMR	RIFAMYCIN	RIFAMYCIN	HMM	148	150	96.67	54.48	145	WP_033959319.1	NAD(+)--rifampin ADP-ribosyltransferase	NF033144.1	NAD(+)--rifampin ADP-ribosyltransferase

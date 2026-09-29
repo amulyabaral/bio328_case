@@ -1,0 +1,4 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+EKHLGIND_01840	bla	class A beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	337	345	93.62	30.06	346	WP_063842277.1	class A beta-lactamase	NF033103.1	class A beta-lactamase
+EKHLGIND_02180	bla	subclass B3 metallo-beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	309	304	95.39	53.51	299	WP_108361548.1	subclass B3 metallo-beta-lactamase	NF033105.1	subclass B3 metallo-beta-lactamase
+EKHLGIND_02960	estDL136	chloramphenicol hydrolase	core	AMR	AMR	PHENICOL	CHLORAMPHENICOL/FLORFENICOL	HMM	310	308	98.05	65.90	305	WP_011906899.1	chloramphenicol hydrolase	NF033149.0	chloramphenicol hydrolase

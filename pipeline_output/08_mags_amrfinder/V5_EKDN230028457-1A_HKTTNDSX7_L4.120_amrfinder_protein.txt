@@ -1,0 +1,3 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+KEFFJDBB_02217	aadS	aminoglycoside 6-adenylyltransferase AadS	core	AMR	AMR	AMINOGLYCOSIDE	STREPTOMYCIN	EXACTP	287	287	100.00	100.00	287	WP_003013318.1	aminoglycoside 6-adenylyltransferase AadS	NF033387.1	AadS family aminoglycoside 6-adenylyltransferase
+KEFFJDBB_02218	ere(D)	EreD family erythromycin esterase	core	AMR	AMR	MACROLIDE	AZITHROMYCIN/ERYTHROMYCIN	PARTIALP	316	408	77.45	93.99	316	WP_015345560.1	EreD family erythromycin esterase	NA	NA

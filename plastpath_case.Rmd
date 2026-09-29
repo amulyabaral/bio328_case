@@ -1,0 +1,1901 @@
+---
+title: "The plastisphere resistome: from pipeline output to a One Health recommendation"
+subtitle: "BIO328 case report"
+author: "Group XX: first name last name, first name last name, ..."
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    theme: flatly
+    code_folding: show
+---
+
+<style>
+.answer  { background-color: #fff8e6; border-left: 5px solid #e8a33d; padding: 0.6em 1em; margin: 0.8em 0; }
+.theory  { background-color: #eef4fb; border-left: 5px solid #3d5a80; padding: 0.6em 1em; margin: 0.8em 0; }
+.explore { background-color: #eef8f1; border-left: 5px solid #2a9d8f; padding: 0.6em 1em; margin: 0.8em 0; }
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = TRUE, fig.width = 8, fig.height = 4.5)
+```
+
+# Getting started
+
+This is your analysis and your report. Work through it from top to bottom in
+RStudio (open `plastpath_case.Rproj` first): run the chunks, read the output, write your
+answers in the orange boxes, add your own code in the "Explore" chunks, and knit to HTML
+when a task is done. The knitted HTML is what you hand in.
+
+- **Do this** parts are for everyone: code and instructions to run and read.
+- **Question n** must be answered in the box below it, in your own words, with the numbers
+  from your output.
+- **Explore** sections are open. Pick at least one item per task, add your code in the
+  chunk provided, and write what you did and found.
+
+
+Practical notes:
+
+- Set your group number in the first chunk below.
+- When a function gives a warning, read it. It usually tells you something important about
+  your data (ties, empty samples, low stress, files with no rows).
+- Set a seed before every permutation test or ordination.
+
+# The study
+
+Plastic in water is quickly covered by a biofilm, the **plastisphere**. Bacteria in that
+biofilm can carry antibiotic resistance genes (ARGs), and floating plastic can carry the
+biofilm from one water body to another. In 2021, pieces of three
+plastics (PP, PVC, PEHD) were placed for two and four weeks in the Lier river (two locations) and in the
+raw and the treated wastewater of the VEAS treatment plant at the Oslofjord. The biofilm
+DNA of 36 plastic pieces was shotgun sequenced. The reads were screened for ARGs (CARD
+database, KMA), the microbial community was profiled (Kraken2/Bracken), and genomes were
+assembled from the reads and binned (MAGs) to find out which bacteria carry which genes.
+
+**Your question:**
+
+> *Is the plastisphere resistome different between raw wastewater, treated wastewater and a
+> river, and should metagenomic analysis of plastispheres be part of future surveillance of
+> antimicrobial resistance?*
+
+![The three sites. Lier river loc2 is upstream, loc1 downstream near the river mouth, VEAS is the wastewater treatment plant of the Oslo region (Sentinel-2, 14 Sept 2021).](figures/study_area_sentinel2.png)
+
+You get the files the bioinformatic pipeline wrote (`pipeline_output/`): FastQC/MultiQC statistics, KMA mapping results against CARD,
+Bracken taxonomic profiles, CheckM, GTDB-Tk and AMRFinderPlus results for the genome bins,
+BLAST results for ARG-carrying contigs, and the study metadata (`metadata/`). Building the
+tables (reading many files, joining, annotating, normalising, filtering, deciding what to
+keep) is where most real-world mistakes happen, so it is part of the work.
+
+You will work with 18 samples, selected by your group number in the chunk below. The files
+also contain the samples you were not given; you may use them in the Explore sections, but
+your core comparison is **river vs raw WW vs treated WW**.
+
+```{r start}
+my_group <- 1            # <- your group number, 1 to 8
+source("R/helpers.R")
+```
+
+# Task 1. From pipeline output to a resistome table
+
+In this task you build the table that all later tasks use, and you check the study design,
+the sequencing depth, the negative control and the effect of the quality filter. These
+checks decide what you can and cannot conclude later.
+
+## 1.1 The study design
+
+**Do this.** Load the metadata and describe the design.
+
+```{r t1-design}
+meta_all <- read_metadata()
+meta_all
+
+meta_all |>
+  filter(env_type != "Control") |>
+  count(environment, month, duration, plastic) |>
+  pivot_wider(names_from = plastic, values_from = n, values_fill = 0)
+```
+
+Your group's samples:
+
+```{r t1-group}
+meta <- select_group(meta_all, my_group)
+my_samples <- meta$sample
+meta |> count(environment, month, duration)
+```
+
+**Question 1.** Describe the design of the whole study and of your subset in a few sentences:
+how many samples per environment, which factors (plastic, incubation time, month) and how
+many levels each. Which of these factors are *crossed* with environment in your subset and
+which are *confounded* with it? (Look at the month column for raw wastewater.)
+
+::: {.answer}
+**Answer 1.**
+:::
+
+::: {.theory}
+**Theory: replication, balance and confounding.** A factor is confounded with environment
+when its levels do not occur in every environment. Any difference between environments can
+then also be a difference between the levels of that factor, and no statistical test can
+separate the two. Balanced designs (same n in every group) make non-parametric tests and
+PERMANOVA behave best. In this study the plastic type had no significant effect in an
+earlier 16S rRNA study, which is why the authors pooled the three plastics as replicates.
+You will test that assumption yourself later.
+:::
+
+## 1.2 Sequencing depth and read quality
+
+The reads were quality- and adapter-trimmed by the sequencing provider, and FastQC was run
+on every read file. MultiQC collected the FastQC results in
+`pipeline_output/01_read_qc/multiqc_general_stats.txt` (one row per read file, `_1` and
+`_2` are the two mates of a pair). Open `multiqc_report.html` in a browser as well.
+
+**Do this.** Build a per-run table of read pairs, duplication and GC content.
+
+```{r t1-readqc}
+qc <- read_tsv("pipeline_output/01_read_qc/multiqc_general_stats.txt", show_col_types = FALSE) |>
+  rename_with(~ str_remove(.x, "FastQC_mqc-generalstats-fastqc-")) |>
+  mutate(run  = str_remove(Sample, "_[12]$"),
+         mate = str_sub(Sample, -1))
+
+seqstats <- qc |>
+  filter(mate == "1") |>                       # both mates have the same number of reads
+  transmute(run,
+            sample         = str_remove(run, "_.*"),
+            read_pairs     = total_sequences,
+            pct_duplicates = percent_duplicates,
+            pct_gc         = percent_gc)
+
+nrow(seqstats)
+seqstats |> count(sample) |> filter(n > 1)
+```
+
+There are 38 runs but 36 samples plus a blank. Find out which sample was sequenced twice
+and how different the two runs are:
+
+```{r t1-v8runs}
+seqstats |> filter(sample == "V8")
+```
+
+```{r t1-depthplot, fig.height=4}
+seqstats |>
+  left_join(meta_all |> select(sample, environment), by = "sample") |>
+  mutate(sample = fct_reorder(sample, as.integer(environment))) |>
+  ggplot(aes(sample, read_pairs / 1e6, fill = environment)) +
+  geom_col() +
+  scale_fill_manual(values = env_colors) +
+  labs(x = NULL, y = "Million read pairs", fill = NULL) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+```{r t1-gcplot, fig.height=4}
+seqstats |>
+  left_join(meta_all |> select(sample, environment), by = "sample") |>
+  filter(sample != "Blank") |>
+  pivot_longer(c(pct_duplicates, pct_gc), names_to = "metric") |>
+  ggplot(aes(environment, value, colour = environment)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15) +
+  scale_colour_manual(values = env_colors, guide = "none") +
+  facet_wrap(~ metric, scales = "free_y") +
+  labs(x = NULL, y = "%")
+```
+
+**Question 3.** How deep were the samples sequenced (median, range)? Is any sample far
+below the others? What does the Blank look like, and why does a negative control have any
+reads at all?
+
+::: {.answer}
+**Answer 3.**
+:::
+
+**Question 4.** The GC content differs systematically between environments. What does that
+tell you before you have looked at a single taxon? (Hint: GC content is a property of
+genomes, and the reads are a mixture of genomes.)
+
+::: {.answer}
+**Answer 4.**
+:::
+
+## 1.3 Build the resistome table from the KMA output
+
+Reads were mapped with KMA (k-mer alignment) against the CARD *protein homolog* nucleotide
+models (For every run, KMA wrote several files into
+`pipeline_output/02_kma_card/`; you need two of them:
+
+- `<run>.res`: one row per CARD reference gene ("template") that received reads, with
+  `Template_length`, `Template_Identity` (% of the reference identical to the consensus of
+  the mapped reads), `Template_Coverage` (% of the reference covered by reads), `Depth`, and
+  more. The header line starts with `#`.
+- `<run>.mapstat`: the read counts per template (`readCount`, `fragmentCount`). The first
+  six lines are comments (`##`), the seventh is the header (`# refSequence ...`).
+
+The column definitions are in `docs/KMAspecification.pdf`.
+
+**Do this.** Write one reader function per file type, apply it to all 38 runs, and join.
+
+```{r t1-kma-import}
+kma_dir <- "pipeline_output/02_kma_card"
+
+read_res <- function(file) {
+  read_tsv(file, show_col_types = FALSE) |>
+    rename(template = `#Template`) |>
+    mutate(run = str_remove(basename(file), "[.]res$"), .before = 1)
+}
+
+read_mapstat <- function(file) {
+  read_tsv(file, skip = 6, show_col_types = FALSE) |>
+    rename(template = `# refSequence`) |>
+    mutate(run = str_remove(basename(file), "[.]mapstat$"), .before = 1)
+}
+
+res     <- map_dfr(list.files(kma_dir, pattern = "[.]res$",     full.names = TRUE), read_res)
+mapstat <- map_dfr(list.files(kma_dir, pattern = "[.]mapstat$", full.names = TRUE), read_mapstat)
+
+c(res = nrow(res), mapstat = nrow(mapstat))
+
+hits <- res |>
+  select(run, template, template_length = Template_length,
+         template_identity = Template_Identity, template_coverage = Template_Coverage,
+         query_identity = Query_Identity, depth = Depth) |>
+  inner_join(mapstat |> select(run, template, reads = readCount, fragments = fragmentCount),
+             by = c("run", "template"))
+
+nrow(hits)
+head(hits$template, 3)
+```
+
+**Question 5.** What is one row of `hits`? Why did we join on both `run` and `template`?
+Check that the join did not lose rows (compare the three numbers above).
+
+::: {.answer}
+**Answer 5.**
+:::
+
+### Annotate the genes with CARD
+
+The template name contains the ARO accession (`ARO:3002835`), which is the key into
+`aro_index.tsv` of the CARD release: gene name, gene family, drug class and mechanism.
+
+```{r t1-aro}
+aro <- read_tsv("pipeline_output/03_card_database/aro_index.tsv", show_col_types = FALSE) |>
+  rename_with(~ str_to_lower(str_replace_all(.x, " ", "_")))
+names(aro)
+
+hits <- hits |>
+  mutate(aro_accession = str_extract(template, "ARO:[0-9]+")) |>
+  left_join(aro |> select(aro_accession, gene = card_short_name, gene_family = amr_gene_family,
+                          drug_class, resistance_mechanism),
+            by = "aro_accession")
+
+sum(is.na(hits$gene))          # must be 0: every template should be annotated
+hits |> distinct(aro_accession, gene) |> nrow()
+```
+
+**Question 6.** Look at `drug_class` for a few genes (`hits |> distinct(gene, drug_class) |> slice_sample(n = 10)`).
+Why can one gene have several drug classes? 
+
+::: {.answer}
+**Answer 6.**
+:::
+
+### Normalise: RPKM per bacterial read
+
+Raw read counts depend on the length of the gene (longer genes catch more reads) and on
+how deep the sample was sequenced. We will normalize to *reads per kilobase of gene per
+million bacterial reads*:
+
+$$\mathrm{RPKM} = \frac{\text{reads mapped to the gene}}{\text{gene length in kb} \times \text{bacterial reads in millions}}$$
+
+The number of read pairs that Kraken2/Bracken assigned to Bacteria is in
+`pipeline_output/04_kraken2_bracken/bact_count.txt` (one line per run).
+
+```{r t1-rpkm}
+bact <- read_table("pipeline_output/04_kraken2_bracken/bact_count.txt",
+                   col_names = c("run", "bacterial_reads"), show_col_types = FALSE)
+
+hits <- hits |>
+  left_join(bact, by = "run") |>
+  mutate(sample = str_remove(run, "_.*"),
+         rpkm   = reads / (template_length / 1000) / (bacterial_reads / 1e6)) |>
+  relocate(sample, .after = run)
+
+summary(hits$rpkm)
+```
+
+**Question 7.** Why divide by *bacterial* reads and not by all reads? (Think about what
+else is in a biofilm on plastic and where ARGs live.) What would change in the comparison
+between river and wastewater if you used all reads? Use `seqstats` and `bact` to check the
+bacterial fraction per environment:
+
+```{r t1-bactfrac}
+seqstats <- seqstats |>
+  left_join(bact, by = "run") |>
+  mutate(pct_bacterial = 100 * bacterial_reads / read_pairs)
+
+seqstats |>
+  left_join(meta_all |> select(sample, environment), by = "sample") |>
+  group_by(environment) |>
+  summarise(n = n(), median_pct_bacterial = median(pct_bacterial),
+            min = min(pct_bacterial), max = max(pct_bacterial))
+```
+
+::: {.answer}
+**Answer 7.**
+:::
+
+## 1.4 The negative control
+
+**Do this.** Look at what the Blank contains.
+
+```{r t1-blank}
+hits |>
+  filter(sample == "Blank") |>
+  arrange(desc(template_identity)) |>
+  select(gene, reads, template_identity, template_coverage, rpkm) |>
+  head(10)
+```
+
+**Question 8.** How many hits does the Blank have before and after an identity/coverage
+filter of 80 %? Where could DNA in a blank come from (extraction kit, laboratory,
+cross-contamination between libraries, "index hopping" on the sequencer)? Are the Blank's
+best genes also found in the real samples, and in which environment? What do you decide to
+do with the Blank, and what do you decide about those genes?
+
+::: {.answer}
+**Answer 8.**
+:::
+
+## 1.5 Sequencing depth in practice: one sample, two runs
+
+Sample V8 (treated WW) was sequenced twice: a first run with 4.9 million read pairs and a
+second with 47 million.
+
+**Do this.** Compare the two runs after the 80/80 filter.
+
+```{r t1-v8}
+v8 <- hits |>
+  filter(sample == "V8") |>
+  keep_good_hits(min_identity = 80, min_coverage = 80) |>
+  mutate(run_label = if_else(str_detect(run, "HHGM2DSX7_L1"), "run1_shallow", "run2_deep"))
+
+v8 |> group_by(run_label) |> summarise(genes = n_distinct(gene), arg_reads = sum(reads), total_rpkm = sum(rpkm))
+
+v8_wide <- v8 |>
+  select(run_label, gene, rpkm) |>
+  pivot_wider(names_from = run_label, values_from = rpkm, values_fill = 0)
+
+ggplot(v8_wide, aes(run2_deep, run1_shallow)) +
+  geom_abline(linetype = 2) +
+  geom_point(size = 2) +
+  labs(x = "RPKM in the deep run (47 M pairs)", y = "RPKM in the shallow run (4.9 M pairs)",
+       title = "Sample V8: the same genes measured at two depths")
+```
+
+**Question 9.** How many genes were found in each run? Which genes were missed by the
+shallow run, and how many reads did they have in the deep run? Is RPKM affected by depth
+in the same way as the number of genes? What does this mean for comparing gene *counts*
+between samples of different depth?
+
+::: {.answer}
+**Answer 9.**
+:::
+
+**Do this.** We will use the deep run. Remove the shallow run and the Blank from the
+working table (keep everything else, including hits below the quality filter).
+
+```{r t1-clean}
+shallow_v8 <- "V8_EKDN230028460-1A_HHGM2DSX7_L1"
+
+resistome_hits <- hits |>
+  filter(run != shallow_v8, sample != "Blank")
+
+n_distinct(resistome_hits$sample)
+```
+
+## 1.6 The quality filter
+
+KMA reports every template that attracted reads, including references that share a
+conserved domain with a gene that is really there. The paper kept hits with template
+identity >= 80 % **and** template coverage >= 80 %.
+
+**Do this.** Look at how the number of genes per sample depends on the threshold.
+
+```{r t1-filter-sens, fig.height=4}
+thresholds <- c(50, 60, 70, 80, 90, 95)
+
+sensitivity <- map_dfr(thresholds, function(t) {
+  resistome_hits |>
+    keep_good_hits(min_identity = t, min_coverage = t) |>
+    count(sample, name = "n_genes") |>
+    mutate(threshold = t)
+}) |>
+  complete(sample = unique(resistome_hits$sample), threshold, fill = list(n_genes = 0)) |>
+  left_join(meta_all |> select(sample, environment), by = "sample")
+
+ggplot(sensitivity, aes(threshold, n_genes, group = sample, colour = environment)) +
+  geom_line() +
+  scale_colour_manual(values = env_colors) +
+  facet_wrap(~ environment, scales = "free_y") +
+  labs(x = "Identity and coverage threshold (%)", y = "Genes per sample")
+```
+
+```{r t1-filter-plot, fig.height=4}
+resistome_hits |>
+  filter(sample %in% my_samples) |>
+  ggplot(aes(template_coverage, template_identity, colour = query_identity)) +
+  geom_point(alpha = 0.5, size = 1) +
+  geom_vline(xintercept = 80, linetype = 2) + geom_hline(yintercept = 80, linetype = 2) +
+  scale_colour_viridis_c() +
+  labs(x = "Template coverage (%)", y = "Template identity (%)", colour = "Query identity (%)")
+```
+
+**Question 10.** Why do we need both identity and coverage, and not only one of them? Look
+at the second plot: what kind of hit has high query identity but low template coverage?
+Which threshold do you choose and why? How sensitive is the *ranking* of the environments
+to the threshold?
+
+::: {.answer}
+**Answer 10.**
+:::
+
+::: {.theory}
+**Theory: false positives and false negatives in gene detection.** A lenient threshold
+keeps partial or divergent matches (more false positives: a gene is called that is not
+really there, or a close homolog with unknown function). A strict threshold keeps only
+near-complete, near-identical genes (more false negatives: real but divergent genes are
+lost, which hits environmental bacteria harder than clinical ones, because CARD is built
+from clinical isolates). There is no right threshold; there is a threshold you can defend.
+:::
+
+**Do this.** From here on, `resistome` is your group's filtered resistome. If you decided
+on another threshold, change it here and say so in your answers.
+
+```{r t1-resistome}
+resistome <- resistome_hits |>
+  keep_good_hits(min_identity = 80, min_coverage = 80) |>
+  filter(sample %in% my_samples) |>
+  left_join(meta, by = "sample")
+
+n_distinct(resistome$sample)          # samples with at least one good hit (18 unless one sample is empty)
+```
+
+## 1.7 Rarefaction: did we sequence deeply enough?
+
+A rarefaction curve subsamples the reads of a sample at increasing depths and counts how
+many genes are found at each depth. A curve that flattens means that more sequencing
+would find few new genes. A curve that is still rising means the observed richness is an
+underestimate. You can draw these curves from the read counts per gene.
+
+**Do this.** Rarefaction curves of ARG-assigned reads for your samples.
+
+```{r t1-rarefaction, fig.height=4}
+m_reads <- to_matrix(resistome, feature = "gene", value = "reads", samples = my_samples)
+rowSums(m_reads)
+
+m_reads <- m_reads[rowSums(m_reads) > 0, , drop = FALSE]     # a sample with no reads has no curve
+
+curves <- rarecurve(m_reads, step = 500, tidy = TRUE)        # columns: Site, Sample (= reads), Species (= genes)
+
+curves |>
+  left_join(meta, by = c("Site" = "sample")) |>
+  ggplot(aes(Sample, Species, group = Site, colour = environment)) +
+  geom_line() +
+  scale_colour_manual(values = env_colors) +
+  facet_wrap(~ environment, scales = "free") +
+  labs(x = "ARG-assigned reads (subsampled)", y = "Genes detected")
+```
+
+Richness after rarefying every sample to the same number of ARG reads:
+
+```{r t1-rarefy}
+common_depth <- min(rowSums(m_reads))
+common_depth
+round(rarefy(m_reads, sample = common_depth), 1)
+```
+
+**Question 11.** Which curves flatten and which do not? Is the difference in richness
+between environments still there after rarefying to a common depth? Note that the x-axis is
+*ARG-assigned* reads, not sequencing depth: a river sample with 70 million read pairs may
+have only 5000 ARG reads. Why is that, and what does it imply for how many more reads you
+would need to see more ARGs in the river?
+
+::: {.answer}
+**Answer 11.**
+:::
+
+**Do this.** Does sequencing depth explain richness across your samples?
+
+```{r t1-depth-richness}
+depth_rich <- resistome |>
+  count(sample, name = "n_genes") |>
+  right_join(meta, by = "sample") |>
+  mutate(n_genes = replace_na(n_genes, 0L)) |>
+  left_join(seqstats |> select(run, read_pairs, bacterial_reads), by = c("sequencing_run" = "run"))
+
+ggplot(depth_rich, aes(read_pairs / 1e6, n_genes, colour = environment)) +
+  geom_point(size = 3) +
+  scale_colour_manual(values = env_colors) +
+  labs(x = "Million read pairs", y = "Genes (identity and coverage >= 80 %)")
+
+cor.test(~ read_pairs + n_genes, data = depth_rich, method = "spearman")
+```
+
+**Question 12.** Interpret rho and p. Why is a correlation across *all* samples not a fair
+test of the depth effect here? (Hint: which variable dominates the variation in richness?)
+How would you test the depth effect fairly with these data?
+
+::: {.answer}
+**Answer 12.**
+:::
+
+::: {.theory}
+**Theory: Spearman correlation.** Spearman's rho is Pearson's correlation computed on
+ranks. It measures a monotonic relationship (as x goes up, does y tend to go up?) without
+assuming linearity or normality, so it suits skewed counts. Report rho, n and p, and never
+read it causally. With 6 points the smallest possible p is about 0.003.
+:::
+
+## Explore (Task 1, choose at least one)
+
+::: {.explore}
+1. **Depth within environment.** Repeat the Spearman test within each environment
+   (`group_by(environment)` + `summarise(cor.test(...)$estimate)`, or split with
+   `filter`). With n = 6 per environment, what is the smallest p-value a Spearman test can
+   give?
+2. **KMA's own depth estimate.** The `depth` column is KMA's mean read depth over the
+   template. Check whether `reads * 150 / template_length` reproduces it, and explain
+   deviations.
+3. **Total fragments from KMA.** Line 4 of every `.mapstat` file gives the number of
+   fragments KMA processed (`## fragmentCount`). Extract it with `read_lines(file, n_max = 6)`
+   and compare with `read_pairs` from FastQC. Are they the same? Why (not)?
+4. **The Blank's genes in your samples.** `tet(C)` and `qacL` pass the 80/80 filter in the
+   Blank. In which of your samples do they occur, at which RPKM, and are they among the most
+   abundant genes there? Would you remove them from all samples, subtract the Blank's RPKM,
+   or keep them and flag them? Argue with numbers.
+5. **The consensus sequence.** `<run>.fsa` contains the consensus sequence KMA assembled for
+   each template. Extract the sequence of one gene with high identity in a wastewater sample
+   (plain `read_lines` is enough) and BLAST it at NCBI. Do you get the same gene?
+6. **Fragment vs read counts.** KMA reports `readCount` and `fragmentCount`. The paper used
+   reads. Does the choice change any ranking of samples or genes? When would it?
+:::
+
+```{r t1-explore}
+# Your exploration code for Task 1
+
+```
+
+::: {.answer}
+**Explore, Task 1.** What I did, what I found, what it means:
+:::
+
+# Task 2: Compare the resistome between environments
+
+Research questions: (1) Which environment has the highest total abundance of resistance
+genes, and does that mean the highest *level of resistance*? (2) Which environment has the
+most diverse resistome? (3) Do raw and treated wastewater differ, and why? (4) Is the
+composition of the river resistome different from wastewater, and why?
+
+We continue with `resistome` (your 18 samples, 80/80 filter, metadata joined). If one of
+your samples has no gene passing the filter, it is still a sample with zero ARGs and must
+not silently disappear; the code below keeps it.
+
+## 2.1 Total ARG abundance
+
+**Do this.** Sum the RPKM per sample and compare environments.
+
+```{r t2-load}
+load <- resistome |>
+  group_by(sample) |>
+  summarise(n_genes = n_distinct(gene), total_rpkm = sum(rpkm), .groups = "drop") |>
+  right_join(meta, by = "sample") |>
+  mutate(across(c(n_genes, total_rpkm), ~ replace_na(.x, 0)))
+
+load |> arrange(environment, sample) |> select(sample, environment, duration, plastic, n_genes, total_rpkm)
+
+ggplot(load, aes(environment, total_rpkm, colour = environment)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(shape = duration), width = 0.15, size = 3) +
+  scale_colour_manual(values = env_colors, guide = "none") +
+  labs(x = NULL, y = "Total ARG abundance (sum of RPKM)", shape = NULL)
+```
+
+```{r t2-load-test}
+kruskal.test(total_rpkm ~ environment, data = load)
+pairwise.wilcox.test(load$total_rpkm, load$environment, p.adjust.method = "BH")
+
+load |> group_by(environment) |> summarise(n = n(), median_rpkm = median(total_rpkm), median_genes = median(n_genes))
+```
+
+**Question 13.** Rank the environments by total ARG abundance and report the medians, the
+Kruskal-Wallis statistic and p, and the adjusted pairwise p-values. Which pairs differ?
+
+::: {.answer}
+**Answer 13.**
+:::
+
+**Question 14.** With 6 vs 6 samples and no ties, the smallest two-sided p-value a Wilcoxon
+rank-sum test can produce is 2/choose(12, 6) = 0.0022. What does that mean for the
+interpretation of your pairwise p-values? What is the *effect size* here (for example the
+ratio of medians)?
+
+::: {.answer}
+**Answer 14.**
+:::
+
+**Question 15.** Does the highest total RPKM mean the highest level of resistance? Give
+three reasons why it may not (think: relative abundance, DNA vs expression, which bacterium
+carries the gene, what the gene actually does).
+
+::: {.answer}
+**Answer 15.**
+:::
+
+::: {.theory}
+**Theory: Kruskal-Wallis and post-hoc tests.** Kruskal-Wallis replaces the values by their
+ranks across all groups and tests whether the mean rank differs between groups. It needs no
+normality but assumes similar distribution shapes. A significant result says only that at
+least one group differs; pairwise Wilcoxon (or Dunn's) tests then say which. Correct the
+pairwise p-values for multiple testing: Benjamini-Hochberg (`"BH"`) controls the false
+discovery rate, Bonferroni the family-wise error rate (more conservative). With n = 6 per
+group the tests have little power and a coarse p-value resolution, so always report the
+effect size next to p.
+:::
+
+## 2.2 Alpha diversity: richness and evenness
+
+**Do this.** Build the sample x gene matrix and compute richness, Shannon and Simpson.
+
+```{r t2-alpha}
+m <- to_matrix(resistome, feature = "gene", value = "rpkm", samples = my_samples)
+dim(m)
+rowSums(m > 0)                      # richness per sample
+
+alpha <- tibble(sample   = rownames(m),
+                richness = specnumber(m),
+                shannon  = diversity(m, index = "shannon"),
+                simpson  = diversity(m, index = "simpson")) |>
+  mutate(across(c(shannon, simpson), ~ if_else(richness == 0, NA, .x))) |>   # undefined for an empty sample
+  left_join(meta, by = "sample")
+
+alpha |>
+  pivot_longer(c(richness, shannon, simpson), names_to = "index") |>
+  ggplot(aes(environment, value, colour = environment)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(shape = duration), width = 0.15, size = 2.5) +
+  scale_colour_manual(values = env_colors, guide = "none") +
+  facet_wrap(~ index, scales = "free_y") +
+  labs(x = NULL, y = NULL, shape = NULL)
+```
+
+**Question 16.** Which environment is the most diverse, which the least? Do richness,
+Shannon and Simpson agree? Explain with the definitions: Shannon weights rare genes,
+Simpson weights the abundant ones. Why is Shannon exactly 0 for a sample with one gene, and
+why did we set the indices to `NA` for a sample with no genes?
+
+::: {.answer}
+**Answer 16.**
+:::
+
+**Do this.** Test the environment effect. Check normality first, then choose.
+
+```{r t2-alpha-test}
+shapiro.test(alpha$shannon)
+
+kruskal.test(shannon ~ environment, data = alpha)
+
+# the paper's approach: rank-transform, then a two-way ANOVA with Tukey post-hoc
+fit_rank <- aov(rank(shannon) ~ environment + duration, data = alpha)
+summary(fit_rank)
+TukeyHSD(aov(rank(shannon) ~ environment, data = alpha))
+```
+
+**Question 17.** Which test did you choose and why? Report the statistic and p. Does
+incubation time (`duration`) matter? Do Kruskal-Wallis and the rank ANOVA agree?
+
+::: {.answer}
+**Answer 17.**
+:::
+
+::: {.theory}
+**Theory: normality checks and rank transforms.** Shapiro-Wilk tests whether a sample
+could come from a normal distribution; with n = 18 (or 6 per group) it has little power,
+so p > 0.05 is weak reassurance and p < 0.05 with such data is a clear warning. The rank
+transform (replace values by their ranks, then run the parametric test) is a classic
+non-parametric trick: it keeps the order and removes the distribution problem, and it
+allows a two-factor model where Kruskal-Wallis allows only one. Tukey HSD after the ANOVA
+compares all pairs and corrects for multiple comparisons.
+:::
+
+## 2.3 Composition: beta diversity
+
+Alpha diversity ignores *which* genes are there. Beta diversity compares whole profiles.
+
+**Do this.** Bray-Curtis dissimilarity, PERMANOVA, PERMDISP.
+
+```{r t2-beta}
+keep    <- rowSums(m) > 0                    # a sample with no genes has no composition
+m_bc    <- m[keep, , drop = FALSE]
+meta_bc <- meta |> filter(sample %in% rownames(m_bc)) |> arrange(match(sample, rownames(m_bc)))
+setdiff(my_samples, rownames(m_bc))          # samples excluded from the composition analysis
+
+bray <- vegdist(m_bc, method = "bray")
+
+set.seed(2025)
+permanova <- adonis2(bray ~ environment + duration, data = meta_bc, permutations = 999, by = "terms")
+permanova
+
+dispersion <- betadisper(bray, meta_bc$environment)
+anova(dispersion)
+TukeyHSD(dispersion)
+```
+
+```{r t2-dispersion-plot, fig.height=3.5}
+tibble(sample = names(dispersion$distances), distance_to_centroid = dispersion$distances) |>
+  left_join(meta_bc, by = "sample") |>
+  ggplot(aes(environment, distance_to_centroid, colour = environment)) +
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.15, size = 2.5) +
+  scale_colour_manual(values = env_colors, guide = "none") +
+  labs(x = NULL, y = "Distance to group centroid (Bray-Curtis)")
+```
+
+**Question 18.** Report R2, pseudo-F and p for environment and for duration. How much of
+the variation in composition does environment explain? What does PERMDISP say, and what
+does it mean for your PERMANOVA conclusion? Which environment has the most variable
+resistome, and why could that be (look at how many genes those samples have)?
+
+::: {.answer}
+**Answer 18.**
+:::
+
+::: {.theory}
+**Theory: PERMANOVA and PERMDISP.** PERMANOVA partitions the total sum of squared
+distances into between-group and within-group parts and computes a pseudo-F. The p-value
+comes from shuffling the group labels many times (999 permutations give a resolution of
+0.001). R2 is the share of variation explained: the effect size. With `by = "terms"` the
+factors are tested sequentially in the order of the formula; with `by = "margin"` each is
+tested after all others. PERMANOVA assumes similar within-group spread; PERMDISP
+(`betadisper`) tests exactly that. If PERMDISP is significant, a significant PERMANOVA can
+reflect a difference in spread as well as in location: look at the ordination and say
+which it is.
+:::
+
+**Do this.** Ordination. NMDS is the standard, but read the stress value and its warning.
+
+```{r t2-nmds}
+set.seed(2025)
+nmds <- metaMDS(bray, k = 2, trymax = 100, trace = 0)
+nmds$stress
+```
+
+With very few genes in the river samples, several samples have (almost) identical
+profiles and NMDS can reach a stress near zero, which vegan flags as "insufficient data".
+That is not a good solution; it is a degenerate one. Principal coordinates analysis (PCoA)
+is a safer choice for such data because it has no iterative fit:
+
+```{r t2-pcoa}
+pcoa <- cmdscale(bray, k = 2, eig = TRUE)
+explained <- round(100 * pcoa$eig[1:2] / sum(pcoa$eig[pcoa$eig > 0]), 1)
+
+ord <- tibble(sample = rownames(pcoa$points), PCo1 = pcoa$points[, 1], PCo2 = pcoa$points[, 2]) |>
+  left_join(meta_bc, by = "sample")
+
+ggplot(ord, aes(PCo1, PCo2, colour = environment)) +
+  stat_ellipse(level = 0.9, linetype = 2) +
+  geom_point(aes(shape = duration), size = 3) +
+  geom_text(aes(label = sample), size = 3, vjust = -0.9, show.legend = FALSE) +
+  scale_colour_manual(values = env_colors) +
+  labs(x = paste0("PCo1 (", explained[1], " %)"), y = paste0("PCo2 (", explained[2], " %)"),
+       colour = NULL, shape = NULL, title = "PCoA of Bray-Curtis dissimilarities")
+```
+
+**Question 19.** Do the samples cluster by environment? Which environments are closest to
+each other? Is there any structure by incubation time inside an environment? Compare what
+the plot suggests with what PERMANOVA tested.
+
+::: {.answer}
+**Answer 19.**
+:::
+
+::: {.theory}
+**Theory: NMDS vs PCoA.** Both turn a distance matrix into a 2-D map. PCoA is a rotation
+(like PCA on distances): axes have an explained-variance interpretation and the solution is
+unique. NMDS only tries to preserve the *rank order* of distances; it is robust to
+non-linear responses and is the community standard, but it starts from random
+configurations (set a seed) and its quality is the stress (< 0.2 acceptable, < 0.1 good;
+near 0 with few distinct points means it is not informative).
+:::
+
+**Do this.** Which genes are shared between environments?
+
+```{r t2-sharing}
+gene_sets <- resistome |>
+  distinct(environment, gene) |>
+  group_by(gene) |>
+  summarise(found_in = paste(sort(as.character(environment)), collapse = " + "), .groups = "drop")
+
+gene_sets |> count(found_in, sort = TRUE)
+
+gene_sets |> filter(str_detect(found_in, "river")) |> arrange(found_in)
+```
+
+**Question 20.** How many genes are unique to raw wastewater? Which genes does your river
+share with wastewater, and what do they do (look up two of them in CARD,
+<https://card.mcmaster.ca>)? What could shared genes mean, and what could they not mean?
+
+::: {.answer}
+**Answer 20.**
+:::
+
+**Do this.** A heatmap of the most abundant genes.
+
+```{r t2-heatmap, fig.height=7}
+top_genes <- resistome |>
+  group_by(gene) |> summarise(total = sum(rpkm)) |> slice_max(total, n = 30) |> pull(gene)
+
+resistome |>
+  filter(gene %in% top_genes) |>
+  select(sample, gene, rpkm) |>
+  complete(sample = my_samples, gene = top_genes, fill = list(rpkm = 0)) |>
+  left_join(meta, by = "sample") |>
+  mutate(sample = fct_reorder(sample, as.integer(environment)),
+         gene   = fct_reorder(gene, rpkm, .fun = sum)) |>
+  ggplot(aes(sample, gene, fill = log10(rpkm + 1))) +
+  geom_tile() +
+  scale_fill_viridis_c(name = "log10(RPKM + 1)") +
+  facet_grid(~ environment, scales = "free_x", space = "free_x") +
+  labs(x = NULL, y = NULL) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+**Question 21.** Which genes make raw wastewater different from treated wastewater? Which
+genes survive treatment (present in both at similar RPKM)? Why might a gene be relatively
+*more* abundant after treatment although the total load dropped?
+
+::: {.answer}
+**Answer 21.**
+:::
+
+## Explore (Task 2, choose at least one)
+
+::: {.explore}
+1. **Transformations change the answer.** Repeat PERMANOVA and the ordination on (a)
+   relative abundances (each sample divided by its total RPKM), (b) log(x + 1) RPKM, (c)
+   presence/absence with Jaccard (`vegdist(m_bc > 0, "jaccard")`), (d) the compositional
+   Aitchison distance (`vegdist(m_bc, "robust.aitchison")`, vegan >= 2.7). Compare R2 and the
+   plots. Which question does each distance answer?
+   *Theory:* Bray-Curtis is dominated by abundant genes and by the total abundance; Jaccard
+   sees only which genes are present; Aitchison compares log-ratios and is the only one that
+   treats the data as compositional (see the lecture demo: two samples with identical
+   proportions and different totals).
+2. **Which pairs of environments differ in composition?** Run PERMANOVA for each pair
+   (subset the distance matrix with `as.dist(as.matrix(bray)[idx, idx])`), collect the
+   p-values and correct with `p.adjust(..., "BH")`. Note the resolution of a permutation
+   p-value with 999 permutations and 6 vs 6 samples.
+3. **Does plastic type matter?** Add `plastic` to the PERMANOVA (`by = "margin"`) and to
+   the rank ANOVA of Shannon diversity. Does the paper's decision to pool the plastics hold
+   for the resistome?
+4. **The threshold decision, revisited.** Repeat 2.1 and 2.3 with the 70/70 or 90/90 filter
+   from Task 1. Which conclusions are stable and which are not?
+5. **More river samples.** Add the river samples of the other month (or the other location)
+   from `meta_all` and `resistome_hits`, and test whether month or location explains river
+   composition (river samples only). Which factor is stronger? Careful: with only river
+   samples several have one or two genes.
+6. **Indicator genes.** For each gene present in at least 4 samples, test raw vs treated WW
+   with `wilcox.test` and correct with BH. Which genes are reduced by treatment and which are
+   not? Plot log2(mean RPKM treated / mean RPKM raw) against the adjusted p-value (a
+   "volcano plot").
+:::
+
+```{r t2-explore}
+# Your exploration code for Task 2
+
+```
+
+::: {.answer}
+**Explore, Task 2.** What I did, what I found, what it means:
+:::
+
+# Task 3: Which resistance classes dominate, and do they matter?
+
+Research questions: (1) Which resistance classes dominate in raw wastewater, in treated
+wastewater and in the river? (2) Which single genes dominate, and what do they do? (3) Which
+classes are important from a clinical or societal perspective?
+
+## 3.1 From CARD drug classes to drug class groups
+
+CARD assigns each gene one or more drug classes, separated by `;`, and it uses fine
+categories (`penam`, `cephalosporin`, `carbapenem` are all beta-lactams). The table
+`metadata/card_drug_class_groups.csv` maps every CARD class in this data set to a coarser
+group; it is the grouping the paper used and you may change it.
+
+**Do this.** Split multi-class strings so that every class counts, map to groups, and sum
+per sample.
+
+```{r t3-classes}
+class_map <- read_csv("metadata/card_drug_class_groups.csv", show_col_types = FALSE)
+
+resistome_long <- resistome |>
+  separate_rows(drug_class, sep = ";") |>
+  left_join(class_map, by = c("drug_class" = "card_drug_class"))
+
+resistome_long |> filter(is.na(drug_class_group)) |> distinct(drug_class)     # must be empty
+
+by_class <- resistome_long |>
+  distinct(sample, gene, drug_class_group, rpkm) |>          # a gene with two classes in the same group counts once
+  group_by(sample, drug_class_group) |>
+  summarise(rpkm = sum(rpkm), n_genes = n_distinct(gene), .groups = "drop") |>
+  complete(sample = my_samples, drug_class_group, fill = list(rpkm = 0, n_genes = 0)) |>
+  left_join(meta, by = "sample")
+```
+
+**Question 22.** A gene like `msrE` has the classes `macrolide antibiotic;streptogramin antibiotic`.
+After `separate_rows` its RPKM is counted under Macrolides *and* under Streptogramins. The
+paper instead labelled such genes "Multi-drug". What are the pros and cons of each choice?
+Which did you use, and how would the plots below change with the other?
+
+::: {.answer}
+**Answer 22.**
+:::
+
+```{r t3-class-plot, fig.height=5}
+by_class |>
+  mutate(sample = fct_reorder(sample, as.integer(environment))) |>
+  ggplot(aes(sample, rpkm, fill = drug_class_group)) +
+  geom_col(position = "fill") +
+  facet_grid(~ environment, scales = "free_x", space = "free_x") +
+  labs(x = NULL, y = "Share of total RPKM", fill = "Drug class group") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+```{r t3-class-abs, fig.height=5}
+by_class |>
+  group_by(environment, drug_class_group) |>
+  summarise(mean_rpkm = mean(rpkm), .groups = "drop") |>
+  ggplot(aes(environment, mean_rpkm, fill = drug_class_group)) +
+  geom_col() +
+  labs(x = NULL, y = "Mean RPKM per sample", fill = "Drug class group")
+```
+
+**Question 23.** Which classes dominate in each environment, by share and by absolute
+abundance? Why can a class dominate the *share* in the river while being almost absent in
+absolute terms? (Look at the y-axes.)
+
+::: {.answer}
+**Answer 23.**
+:::
+
+## 3.2 Test the classes
+
+**Do this.** For each class, test whether its abundance differs between environments, and
+correct for testing many classes.
+
+```{r t3-class-test}
+class_tests <- by_class |>
+  group_by(drug_class_group) |>
+  summarise(n_samples_present = sum(rpkm > 0),
+            median_river   = median(rpkm[env_type == "River"]),
+            median_raw     = median(rpkm[env_type == "Raw WW"]),
+            median_treated = median(rpkm[env_type == "Treated WW"]),
+            p = kruskal.test(rpkm ~ environment)$p.value,
+            .groups = "drop") |>
+  mutate(p_adj = p.adjust(p, method = "BH")) |>
+  arrange(p_adj)
+
+class_tests
+```
+
+```{r t3-class-box, fig.height=7}
+top8 <- class_tests |> slice_max(median_raw + median_treated + median_river, n = 8) |> pull(drug_class_group)
+
+by_class |>
+  filter(drug_class_group %in% top8) |>
+  ggplot(aes(environment, rpkm + 1, colour = environment)) +
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.15, size = 1.8) +
+  scale_colour_manual(values = env_colors, guide = "none") +
+  scale_y_log10() +
+  facet_wrap(~ drug_class_group, scales = "free_y", ncol = 4) +
+  labs(x = NULL, y = "RPKM + 1 (log scale)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+**Question 24.** Which classes differ significantly after correction? Why correct at all
+(what happens to the false-positive rate if you test 16 classes at alpha = 0.05)? Which
+classes are *not* significant, and is that because they are similar everywhere or because
+they are rare?
+
+::: {.answer}
+**Answer 24.**
+:::
+
+::: {.theory}
+**Theory: multiple testing.** Each test has a 5 % chance of a false positive at
+alpha = 0.05. With 16 independent tests the chance of at least one false positive is
+1 - 0.95^16 = 56 %. Bonferroni divides alpha by the number of tests (very strict);
+Benjamini-Hochberg controls the *false discovery rate*, the expected share of false
+positives among the tests you call significant, and is the usual choice for screening
+many genes or classes. Report which correction you used and how many tests it covered.
+:::
+
+## 3.3 The genes behind the classes
+
+**Do this.** Top genes per environment and their mechanisms.
+
+```{r t3-top-genes}
+resistome |>
+  group_by(environment, gene, gene_family, resistance_mechanism) |>
+  summarise(mean_rpkm = mean(rpkm), n_samples = n_distinct(sample), .groups = "drop") |>
+  group_by(environment) |>
+  slice_max(mean_rpkm, n = 6) |>
+  arrange(environment, desc(mean_rpkm))
+```
+
+```{r t3-mechanisms, fig.height=4}
+resistome |>
+  group_by(sample, environment, resistance_mechanism) |>
+  summarise(rpkm = sum(rpkm), .groups = "drop") |>
+  ggplot(aes(environment, rpkm, fill = resistance_mechanism)) +
+  geom_col(position = "fill") +
+  labs(x = NULL, y = "Share of total RPKM", fill = "Mechanism")
+```
+
+**Question 25.** Look up the top gene of each environment in CARD (<https://card.mcmaster.ca>)
+and note: which antibiotic(s) it acts on, by which mechanism, and in which bacteria it was
+first described. Is `mean_rpkm` computed over the samples where the gene is present or over
+all six? Which is more honest for a ranking?
+
+::: {.answer}
+**Answer 25.**
+:::
+
+**Question 26.** `vanR` genes (glycopeptide class) are frequent in river samples. `vanR` is
+a regulator of the vancomycin resistance operon, not the resistance enzyme itself. Does the
+presence of `vanR` mean the river has vancomycin-resistant bacteria? Which genes would you
+need to see as well? (This is a general point: many CARD hits are regulators, efflux pump
+components or intrinsic genes.)
+
+::: {.answer}
+**Answer 26.**
+:::
+
+## 3.4 Clinical and societal relevance
+
+**Do this.** Make a table (in text, or as a `tribble`) with, for the five most abundant
+classes in your data: the antibiotics affected, examples of clinical use, the WHO AWaRe
+category of those antibiotics (Access / Watch / Reserve) or the WHO "critically important"
+status, and the bacteria in which resistance to that class is a public health concern
+(ESKAPEE, see Task 4).
+
+```{r t3-clinical-table}
+# Optional: build your table as a tribble, e.g.
+# tribble(~drug_class_group, ~antibiotics, ~clinical_use, ~aware_category, ~pathogens_of_concern, ...)
+
+```
+
+::: {.answer}
+**Clinical relevance table.**
+:::
+
+**Question 27.** Which of your top classes are clinically most worrying, and why? Which
+classes are probably environmental background (intrinsic genes of soil and water bacteria)
+rather than a sign of anthropogenic pollution? What in your data distinguishes the two
+(think: where is the class found, how variable is it, what kind of genes are they)?
+
+::: {.answer}
+**Answer 27.**
+:::
+
+**Question 28.** `sul1` and `qacEdelta1` are typically carried on class 1 integrons, together
+with `intI1`, and are used as markers of anthropogenic AMR pollution. Where do you find them,
+and what does that suggest about wastewater input to the river?
+
+::: {.answer}
+**Answer 28.**
+:::
+
+## Explore (Task 3, choose at least one)
+
+::: {.explore}
+1. **What does treatment remove?** For every gene present in at least 4 of the 12
+   wastewater samples, test raw vs treated with `wilcox.test`, correct with BH, and compute
+   log2(mean treated / mean raw). Plot a volcano plot. Which genes are relatively enriched
+   after treatment, and which families do they belong to? Formulate a hypothesis about why
+   (survival of specific hosts? mobile elements? intrinsic genes of biofilm formers?).
+2. **Share vs absolute.** Reproduce the stacked bars with the "Multi-drug" convention of
+   the paper (genes with more than one class *group* become "Multi-drug"). Which classes
+   change most? Write two sentences on how the choice affects the message of the figure.
+3. **Gene families as the unit.** Repeat 3.1 and 3.2 with `gene_family` instead of drug
+   class (OXA beta-lactamases, MFS efflux pumps, ...). Which unit tells the clinician more,
+   which tells the ecologist more?
+4. **Efflux pumps.** Efflux genes are often chromosomal and intrinsic (for example the Mex
+   pumps of *Pseudomonas*). Split the resistome into efflux vs other mechanisms and compare
+   how much of each environment's resistome is efflux. What would you conclude if the river
+   resistome were mostly efflux?
+5. **Diversity within a class.** How many *different* beta-lactamase genes does each
+   environment carry, and how are they distributed over OXA, TEM, CTX-M, metallo-beta-lactamases
+   and others (`gene_family`)? Which of these hydrolyse carbapenems (check CARD)?
+:::
+
+```{r t3-explore}
+# Your exploration code for Task 3
+
+```
+
+::: {.answer}
+**Explore, Task 3.** What I did, what I found, what it means:
+:::
+
+# Task 4. Potentially clinically relevant bacteria
+
+Research questions: (1) Which potentially clinically relevant bacteria are detected in the
+plastispheres? (2) Are they found in all environments or mainly in wastewater? Do raw and
+treated WW differ? (3) What does it mean that a bacterium is "detected" metagenomically? Can
+we conclude that it is alive, infectious or pathogenic?
+
+## 4.1 Build the taxonomic profiles from the Bracken output
+
+Reads were classified with Kraken2 (standard database, October 2023) and the counts were
+re-estimated at species and genus level with Bracken. `pipeline_output/04_kraken2_bracken/`
+has one file per run and level, tab-separated, with the standard Bracken columns:
+`name`, `taxonomy_id`, `taxonomy_lvl`, `kraken_assigned_reads` (reads Kraken2 put exactly on
+this taxon), `added_reads` (reads Bracken moved down from higher ranks), `new_est_reads`
+(the final estimate), `fraction_total_reads`.
+
+**Do this.** Read all files at both levels and normalise to reads per million bacterial reads.
+
+```{r t4-bracken-import}
+bracken_dir <- "pipeline_output/04_kraken2_bracken"
+
+read_bracken <- function(file) {
+  read_tsv(file, show_col_types = FALSE) |>
+    mutate(run = str_remove(basename(file), "[.](species|genus)[.]bracken$"), .before = 1)
+}
+
+import_level <- function(level) {
+  map_dfr(list.files(bracken_dir, pattern = paste0("[.]", level, "[.]bracken$"), full.names = TRUE), read_bracken) |>
+    left_join(bact, by = "run") |>
+    transmute(run, sample = str_remove(run, "_.*"),
+              taxon = name, taxid = taxonomy_id, level = taxonomy_lvl,
+              kraken_assigned_reads, added_reads, reads = new_est_reads,
+              bacterial_reads, rpm = reads / bacterial_reads * 1e6)
+}
+
+taxa_species <- import_level("species")
+taxa_genus   <- import_level("genus")
+
+n_distinct(taxa_species$sample)
+taxa_species |> group_by(sample) |> summarise(species = n(), reads = sum(reads), bacterial_reads = first(bacterial_reads)) |> head()
+```
+
+**Question 29.** How many species and genera per sample? Compare the sum of `reads` in the
+species table with `bacterial_reads` for the same sample: why is the sum smaller (what
+happens to reads that Kraken2 can only place at genus level or higher)? Which of the two
+is the better denominator for a species' relative abundance, and why?
+
+::: {.answer}
+**Answer 29.**
+:::
+
+## 4.2 The communities at a glance
+
+**Do this.** The most abundant genera per environment.
+
+```{r t4-top-genera, fig.height=5}
+genus_group <- taxa_genus |> filter(sample %in% my_samples) |> left_join(meta, by = "sample")
+
+top_genera <- genus_group |>
+  group_by(taxon) |> summarise(mean_rpm = mean(rpm)) |> slice_max(mean_rpm, n = 14) |> pull(taxon)
+
+genus_group |>
+  mutate(taxon = if_else(taxon %in% top_genera, taxon, "other"),
+         sample = fct_reorder(sample, as.integer(environment))) |>
+  group_by(sample, environment, taxon) |>
+  summarise(rpm = sum(rpm), .groups = "drop") |>
+  ggplot(aes(sample, rpm, fill = taxon)) +
+  geom_col(position = "fill") +
+  facet_grid(~ environment, scales = "free_x", space = "free_x") +
+  labs(x = NULL, y = "Share of bacterial reads", fill = "Genus") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+**Question 30.** Describe the communities in two sentences: which genera dominate the river
+plastisphere, which the wastewater ones? Are the raw and treated wastewater communities
+similar? Look up two dominant genera: are they typical biofilm formers, sewage bacteria,
+or freshwater bacteria?
+
+::: {.answer}
+**Answer 30.**
+:::
+
+## 4.3 ESKAPEE pathogens
+
+The ESKAPEE group (*Enterococcus faecium*, *Staphylococcus aureus*, *Klebsiella pneumoniae*,
+*Acinetobacter baumannii*, *Pseudomonas aeruginosa*, *Enterobacter* spp., *Escherichia coli*)
+are the bacteria responsible for most hospital infections with multidrug resistance.
+
+**Do this.** Extract them and check in how many samples each one is "detected".
+
+```{r t4-eskapee}
+eskapee <- c("Enterococcus faecium", "Staphylococcus aureus", "Klebsiella pneumoniae",
+             "Acinetobacter baumannii", "Pseudomonas aeruginosa",
+             "Enterobacter cloacae", "Enterobacter hormaechei", "Escherichia coli")
+
+esk <- taxa_species |>
+  filter(sample %in% my_samples, taxon %in% eskapee) |>
+  select(sample, taxon, reads, rpm) |>
+  complete(sample = my_samples, taxon = eskapee, fill = list(reads = 0, rpm = 0)) |>
+  left_join(meta, by = "sample")
+
+esk |>
+  group_by(taxon, environment) |>
+  summarise(detected = paste0(sum(reads > 0), "/", n()), median_rpm = round(median(rpm)), .groups = "drop") |>
+  pivot_wider(names_from = environment, values_from = c(detected, median_rpm))
+
+esk |> group_by(taxon) |> summarise(min_rpm = round(min(rpm), 1), max_rpm = round(max(rpm)))
+```
+
+**Question 31.** Every ESKAPEE species is "detected" in every sample. Before you conclude
+that every plastic piece in a Norwegian river carries *Klebsiella pneumoniae*: how does
+Kraken2 assign a read to a species, what happens when a read comes from a closely related
+environmental species that is not in the database, and why are *E. coli* and *P. aeruginosa*
+(the two best-sequenced bacteria on Earth) especially prone to this?
+
+::: {.answer}
+**Answer 31.**
+:::
+
+::: {.theory}
+**Theory: presence in a k-mer classifier is a threshold decision.** Kraken2 matches
+k-mers (35-mers) of a read to the lowest common ancestor of all genomes that contain them.
+A few k-mers shared with a well-represented species produce a species-level call. A handful
+of reads therefore never proves presence; large read counts do not prove it either (they
+may come from relatives), but they make it much more likely. Common practice is to require
+a minimum relative abundance (for example 0.01 % or 0.1 % of classified reads), a minimum
+number of reads, or a confidence threshold in Kraken2 itself. Bracken's `added_reads`
+tells you how many of a species' reads were pushed down from a higher rank.
+:::
+
+**Do this.** Compare the abundance of each species between environments.
+
+```{r t4-eskapee-plot, fig.height=6}
+ggplot(esk, aes(environment, rpm + 1, colour = environment)) +
+  geom_boxplot(outlier.shape = NA) + geom_jitter(width = 0.15, size = 1.8) +
+  scale_colour_manual(values = env_colors, guide = "none") +
+  scale_y_log10() +
+  facet_wrap(~ taxon, scales = "free_y", ncol = 4) +
+  labs(x = NULL, y = "Reads per million bacterial reads (log scale)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r t4-eskapee-test}
+esk_tests <- esk |>
+  group_by(taxon) |>
+  summarise(median_river   = median(rpm[env_type == "River"]),
+            median_raw     = median(rpm[env_type == "Raw WW"]),
+            median_treated = median(rpm[env_type == "Treated WW"]),
+            p = kruskal.test(rpm ~ environment)$p.value, .groups = "drop") |>
+  mutate(p_adj = p.adjust(p, "BH")) |>
+  arrange(p_adj)
+esk_tests
+```
+
+**Question 32.** Which species are more abundant in wastewater, which in the river, and
+which do not differ? Report the medians and the adjusted p-values. Is any species clearly
+reduced by treatment? Compare with the paper (Kruskal-Wallis, p = 6.7e-7 across the four
+environments; *E. coli* highest in river loc1; *A. baumannii*, *E. faecium*, *P. aeruginosa*
+highest in raw WW).
+
+::: {.answer}
+**Answer 32.**
+:::
+
+**Do this.** Presence/absence depends on the threshold you choose. Test the association
+between detection and environment at three thresholds with Fisher's exact test.
+
+```{r t4-thresholds}
+detection_at <- function(threshold_pct) {
+  esk |>
+    mutate(present = rpm >= threshold_pct * 1e4) |>          # rpm of 1e4 = 1 % of bacterial reads
+    group_by(taxon, environment) |>
+    summarise(present = sum(present), n = n(), .groups = "drop") |>
+    mutate(threshold_pct = threshold_pct)
+}
+
+detections <- map_dfr(c(0.001, 0.01, 0.1), detection_at)
+
+detections |>
+  mutate(cell = paste0(present, "/", n)) |>
+  select(taxon, threshold_pct, environment, cell) |>
+  pivot_wider(names_from = environment, values_from = cell) |>
+  arrange(taxon, threshold_pct)
+
+# one species, one threshold: is detection associated with environment?
+tab <- esk |>
+  filter(taxon == "Enterococcus faecium") |>
+  mutate(present = rpm >= 0.01 * 1e4) |>
+  with(table(environment, present))
+tab
+fisher.test(tab)
+```
+
+**Question 33.** For which species and thresholds does the detection pattern differ between
+environments? Why is Fisher's exact test the right choice for these tables (think about
+the expected counts)? What threshold would you recommend for a surveillance report, and
+what would you lose or gain by moving it?
+
+::: {.answer}
+**Answer 33.**
+:::
+
+**Question 34.** Detection means DNA with k-mers matching the species was on the plastic.
+List what it does *not* show (viable cells? growth in the biofilm? virulence? resistance?)
+and what additional evidence would be needed for each. Why is this distinction especially
+important for treated wastewater?
+
+::: {.answer}
+**Answer 34.**
+:::
+
+## Explore (Task 4, choose at least one)
+
+::: {.explore}
+1. **Community diversity and depth.** With millions of reads per sample you can draw real
+   rarefaction curves for genus richness: `rarecurve(to_matrix(genus_group, "taxon", "reads",
+   my_samples), step = 200000, tidy = TRUE)`. Do the curves saturate? Compare with the ARG
+   curves from Task 1 and explain the difference.
+2. **Does the community predict the resistome?** Compute Bray-Curtis on the genus table
+   (relative abundances) and on the resistome (`m_bc` from Task 2) for the same samples, and
+   test their association with a Mantel test (`vegan::mantel`). Run PERMANOVA on the
+   community too. Is the environment effect stronger for taxa or for ARGs?
+3. **Sewage indicators.** Genera such as *Bacteroides*, *Prevotella*, *Faecalibacterium*,
+   *Arcobacter* and *Acinetobacter* are typical of raw sewage. Plot their abundance across
+   your environments. Do they survive treatment? Do they reach the river plastisphere?
+4. **How confident is the species call?** For the ESKAPEE species, plot
+   `kraken_assigned_reads` vs `added_reads`. A species whose reads are mostly `added` by
+   Bracken was hardly ever hit directly. What does that mean for the presence question?
+5. **Genus level as a safer unit.** Repeat 4.3 at genus level (*Escherichia*, *Klebsiella*,
+   *Acinetobacter*, *Pseudomonas*, *Enterococcus*, *Staphylococcus*, *Enterobacter*). Do the
+   conclusions change? Which unit would you use in a surveillance report?
+6. **Other pathogens.** *Aeromonas*, *Legionella*, *Arcobacter*, *Salmonella*, *Campylobacter*,
+   *Vibrio*, *Mycobacterium*: which are in your data, where, and at what abundance?
+:::
+
+```{r t4-explore}
+# Your exploration code for Task 4
+
+```
+
+::: {.answer}
+**Explore, Task 4.** What I did, what I found, what it means:
+:::
+
+# Task 5. Which bacteria carry the resistance genes?
+
+Research questions: (1) Which bacterial groups carry the most resistance genes? (2) Are
+resistance genes mainly found in known pathogens, or also in environmental bacteria? (3)
+Why does it matter which bacterium carries a gene? (4) What is the difference between
+detecting a gene in a sample and linking it to a host? (5) What are the limitations of
+MAG-based host assignment?
+
+Reads alone cannot tell which bacterium carried a gene. There are three ways to get closer,
+each with different evidence and different weaknesses. You will do all three.
+
+## 5.1 Route 1: co-abundance across samples (statistical association)
+
+If a gene is carried by a genus, the two should rise and fall together across samples.
+This is an association, not physical evidence, and it is confounded by everything that
+differs between environments.
+
+**Do this.** Correlate the CLR-transformed abundance of the most abundant genera with the
+CLR-transformed RPKM of genes found in at least six samples.
+
+```{r t5-coabundance}
+gene_mat  <- to_matrix(resistome, feature = "gene", value = "rpkm", samples = my_samples)
+genus_mat <- to_matrix(taxa_genus |> filter(sample %in% my_samples), feature = "taxon", value = "reads", samples = my_samples)
+
+genes_keep  <- colnames(gene_mat)[colSums(gene_mat > 0) >= 6]
+genera_keep <- names(sort(colMeans(genus_mat), decreasing = TRUE))[1:40]
+
+clr <- function(m, pseudo = 1) { x <- log(m + pseudo); x - rowMeans(x) }   # centred log-ratio per sample
+
+cors <- cor(clr(genus_mat[, genera_keep]), clr(gene_mat[, genes_keep]), method = "spearman")
+dim(cors)                                                 # genera x genes
+
+top_pairs <- as.data.frame(as.table(cors)) |>
+  rename(genus = Var1, gene = Var2, rho = Freq) |>
+  arrange(desc(rho)) |>
+  head(15)
+top_pairs
+```
+
+```{r t5-coabundance-heatmap, fig.height=7}
+as.data.frame(as.table(cors)) |>
+  rename(genus = Var1, gene = Var2, rho = Freq) |>
+  ggplot(aes(gene, genus, fill = rho)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#3d5a80", mid = "white", high = "#d1495b", limits = c(-1, 1)) +
+  labs(x = NULL, y = NULL, fill = "Spearman rho") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 7),
+        axis.text.y = element_text(size = 7))
+```
+
+**Question 35.** Which genus-gene pairs have the strongest positive correlation? Look at
+the heatmap: are the correlations organised in blocks? What creates those blocks (hint:
+which samples have most ARGs and which genera dominate them)? Why is a correlation across
+environments almost useless as evidence for a host, and how could you compute a fairer one?
+
+::: {.answer}
+**Answer 35.**
+:::
+
+::: {.theory}
+**Theory: compositional data and spurious correlation.** Relative abundances of one
+sample sum to a constant. If one taxon goes up, all others must go down, so negative
+correlations appear by arithmetic and positive ones can be induced by a shared
+denominator. The centred log-ratio (log of each value minus the mean log of the sample)
+removes the constant-sum constraint; correlations of CLR values (or proportionality
+measures) are the standard remedy. A pseudocount is needed for zeros, and with 18 samples
+and 40 x 90 pairs, many correlations above 0.6 arise by chance: treat this route as
+hypothesis generation only.
+:::
+
+## 5.2 Route 2: genes and taxonomy on the same contig (physical linkage, short range)
+
+Reads were assembled (MEGAHIT) and the contigs were BLASTed against CARD. Contigs with an
+ARG and at least 1500 bp of sequence on both sides of it were classified with Kraken2: the
+gene and the taxonomic signal come from the same piece of DNA.
+
+Files in `pipeline_output/05_contigs_blast_card/`: `blast_output/flanking_<run>_blast_output.txt`
+(one row per BLAST hit, with the flanking lengths), `contigs_flank.kraken_out.txt` (Kraken2
+output for the contigs with long flanks: status, contig, `name (taxid N)`, length, k-mer string).
+
+**Do this.** Read the flanking BLAST hits, keep one best hit per gene position, add the
+Kraken2 classification.
+
+```{r t5-contigs}
+flank_dir <- "pipeline_output/05_contigs_blast_card"
+
+read_flank <- function(file) {
+  read_tsv(file, show_col_types = FALSE) |>
+    mutate(run = str_remove(str_remove(basename(file), "^flanking_"), "_blast_output[.]txt$"), .before = 1)
+}
+
+flank <- map_dfr(list.files(file.path(flank_dir, "blast_output"), pattern = "^flanking_", full.names = TRUE), read_flank) |>
+  mutate(sample = str_remove(run, "_.*"), aro_accession = str_extract(sseqid, "ARO:[0-9]+")) |>
+  filter(flanking_left >= 1500, flanking_right >= 1500) |>
+  group_by(run, qseqid, qstart) |>                     # several CARD alleles hit the same region: keep the best
+  slice_max(pident, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  left_join(aro |> select(aro_accession, gene = card_short_name, gene_family = amr_gene_family, drug_class), by = "aro_accession")
+
+kraken_contigs <- read_tsv(file.path(flank_dir, "contigs_flank.kraken_out.txt"),
+                           col_names = c("status", "contig", "classification", "length", "kmers"),
+                           show_col_types = FALSE) |>
+  transmute(contig, taxon = str_remove(classification, " [(]taxid [0-9]+[)]$"),
+            taxid = as.integer(str_extract(classification, "[0-9]+(?=[)]$)")),
+            genus = word(taxon, 1))
+
+contig_args <- flank |>
+  left_join(kraken_contigs, by = c("qseqid" = "contig")) |>
+  select(run, sample, contig = qseqid, gene, gene_family, drug_class, pident, length, qlen, flanking_left, flanking_right, taxon, genus)
+
+nrow(contig_args); n_distinct(contig_args$contig)
+contig_args |> count(is.na(taxon))
+```
+
+```{r t5-contigs-summary}
+contig_group <- contig_args |> filter(sample %in% my_samples) |> left_join(meta, by = "sample")
+
+contig_group |> count(environment)
+
+contig_group |>
+  filter(!is.na(genus), !genus %in% c("unclassified", "root")) |>
+  count(environment, genus, sort = TRUE) |>
+  group_by(environment) |> slice_max(n, n = 8)
+
+eskapee_genera <- c("Enterococcus", "Staphylococcus", "Klebsiella", "Acinetobacter", "Pseudomonas", "Enterobacter", "Escherichia")
+contig_group |>
+  filter(genus %in% eskapee_genera) |>
+  count(environment, taxon, gene, sort = TRUE)
+```
+
+**Question 36.** How many ARG-carrying contigs with long flanks does each environment have,
+and why does the river have so few (think about coverage: what is needed to assemble a
+1500 bp flank)? Which genera carry ARGs on contigs in wastewater? Which ESKAPEE species
+appear, with which genes? Is Kraken2's contig classification more or less reliable than its
+read classification, and why?
+
+::: {.answer}
+**Answer 36.**
+:::
+
+**Question 37.** Find contigs that carry more than one gene (`count(contig) |> filter(n > 1)`).
+Which gene combinations occur together? What does `sul1` + `qacEdelta1` on one contig
+suggest?
+
+::: {.answer}
+**Answer 37.**
+:::
+
+## 5.3 Route 3: metagenome-assembled genomes (physical linkage, genome scale)
+
+Contigs of each sample were binned into genome bins (MetaBAT2), and the quality of every
+bin was estimated with CheckM. Bins with completeness >= 80 % and contamination <= 10 %
+were called high-quality MAGs, classified with GTDB-Tk and screened for resistance genes
+with AMRFinderPlus (on the Prokka-predicted proteins).
+
+**Do this.** Build the MAG table from the three outputs.
+
+```{r t5-mags-import}
+checkm <- read_delim("pipeline_output/06_mags_checkm/checkm_output.csv", delim = ";",
+                     show_col_types = FALSE, name_repair = "unique_quiet") |>
+  transmute(mag_id = Bin_Id, sample = str_remove(mag_id, "_.*"),
+            marker_lineage = Marker, completeness = Completeness, contamination = Contamination)
+
+bin_stats <- read_tsv("pipeline_output/06_mags_checkm/bin_stats.analyze.tsv",
+                      col_names = c("mag_id", "stats"), show_col_types = FALSE, quote = "") |>
+  transmute(mag_id,
+            genome_size_bp = as.integer(str_match(stats, "'Genome size': ([0-9]+)")[, 2]),
+            n_contigs      = as.integer(str_match(stats, "'# contigs': ([0-9]+)")[, 2]),
+            n50_bp         = as.integer(str_match(stats, "'N50 [(]contigs[)]': ([0-9]+)")[, 2]),
+            gc             = as.numeric(str_match(stats, "'GC': ([0-9.]+)")[, 2]))
+
+read_gtdb <- function(file) {
+  read_tsv(file, show_col_types = FALSE, col_types = cols(.default = "c")) |>     # all columns as text: the two files disagree on types
+    select(mag_id = user_genome, classification)
+}
+gtdb <- bind_rows(read_gtdb("pipeline_output/07_mags_gtdbtk/gtdbtk.bac120.summary.tsv"),
+                  read_gtdb("pipeline_output/07_mags_gtdbtk/gtdbtk.ar53.summary.tsv")) |>
+  separate(classification, into = c("domain", "phylum", "class", "order", "family", "genus", "species"), sep = ";") |>
+  mutate(across(domain:species, ~ na_if(str_remove(.x, "^[a-z]__"), "")))
+
+amrf_files <- list.files("pipeline_output/08_mags_amrfinder", pattern = "_amrfinder_protein[.]txt$", full.names = TRUE)
+read_amrfinder <- function(file) {
+  read_tsv(file, show_col_types = FALSE, col_types = cols(.default = "c")) |>
+    mutate(mag_id = str_remove(basename(file), "_amrfinder_protein[.]txt$"), .before = 1)
+}
+mag_args <- map_dfr(amrf_files, read_amrfinder) |>
+  transmute(mag_id, protein_id = `Protein identifier`, gene = `Gene symbol`, gene_description = `Sequence name`,
+            element_type = `Element type`, drug_class = Class, subclass = Subclass, method = Method,
+            pct_identity = as.numeric(`% Identity to reference sequence`),
+            pct_coverage = as.numeric(`% Coverage of reference sequence`))
+
+screened <- str_remove(basename(amrf_files), "_amrfinder_protein[.]txt$")
+
+mags <- checkm |>
+  left_join(bin_stats, by = "mag_id") |>
+  left_join(gtdb, by = "mag_id") |>
+  mutate(screened = mag_id %in% screened) |>
+  left_join(mag_args |> filter(element_type == "AMR") |> count(mag_id, name = "n_args"), by = "mag_id") |>
+  mutate(n_args = if_else(screened, replace_na(n_args, 0L), NA_integer_)) |>
+  filter(!str_detect(mag_id, fixed(shallow_v8)))                 # bins from the shallow duplicate run of V8
+
+nrow(mags); sum(mags$screened); nrow(mag_args)
+```
+
+**Question 38.** How many bins are there in total, how many were screened for ARGs, and why
+only those? What is the difference between `n_args = 0` and `n_args = NA`? Why did we
+remove the bins of the shallow V8 run?
+
+::: {.answer}
+**Answer 38.**
+:::
+
+**Do this.** Look at the quality of all bins and apply the quality filter.
+
+```{r t5-quality, fig.height=4.5}
+ggplot(mags, aes(completeness, contamination, colour = screened)) +
+  geom_point(alpha = 0.4, size = 1) +
+  geom_vline(xintercept = 80, linetype = 2) + geom_hline(yintercept = 10, linetype = 2) +
+  scale_y_continuous(trans = "log1p", breaks = c(0, 1, 5, 10, 50, 100, 500)) +
+  labs(x = "Completeness (%)", y = "Contamination (%, log scale)", colour = "Screened for ARGs")
+
+mags <- mags |>
+  mutate(quality = case_when(completeness >= 80 & contamination <= 10 ~ "high",
+                             completeness >= 50 & contamination <= 10 ~ "medium",
+                             TRUE ~ "low"))
+mags |> count(quality)
+
+hq <- mags |> filter(quality == "high", sample %in% my_samples) |> left_join(meta, by = "sample")
+```
+
+**Question 39.** What do completeness and contamination measure, and how does CheckM
+estimate them (single-copy marker genes)? How can contamination exceed 100 %? What do the
+MIMAG standards call high-quality (completeness > 90 %, contamination < 5 %, plus rRNA and
+tRNA genes), and how does the paper's threshold compare?
+
+::: {.answer}
+**Answer 39.**
+:::
+
+**Do this.** Summarise the high-quality MAGs of your samples.
+
+```{r t5-mag-summary}
+hq |>
+  group_by(environment) |>
+  summarise(n_mags = n(), n_with_arg = sum(n_args > 0), pct_with_arg = round(100 * mean(n_args > 0), 1),
+            pct_genus_resolved = round(100 * mean(!is.na(genus)), 1),
+            pct_species_resolved = round(100 * mean(!is.na(species)), 1), .groups = "drop")
+
+arg_table <- with(hq, table(environment, has_arg = n_args > 0))
+arg_table
+chisq.test(arg_table)
+fisher.test(arg_table)
+```
+
+```{r t5-mag-phyla, fig.height=5}
+hq |>
+  count(environment, phylum, has_arg = n_args > 0) |>
+  group_by(phylum) |> mutate(total = sum(n)) |> ungroup() |>
+  mutate(phylum = fct_reorder(phylum, total)) |>
+  ggplot(aes(n, phylum, fill = has_arg)) +
+  geom_col() +
+  facet_wrap(~ environment) +
+  labs(x = "High-quality MAGs", y = NULL, fill = "Carries an ARG")
+```
+
+```{r t5-mag-genera}
+hq |>
+  filter(n_args > 0) |>
+  left_join(mag_args |> filter(element_type == "AMR") |> group_by(mag_id) |> summarise(genes = paste(gene, collapse = ", ")), by = "mag_id") |>
+  select(environment, phylum, genus, species, completeness, contamination, n_args, genes) |>
+  arrange(environment, desc(n_args))
+```
+
+**Question 40.** Which environment has the highest share of ARG-carrying MAGs? Is the
+difference significant (report the test and p)? The paper found the highest share in treated
+WW: is that what you see, and how do you explain a *higher share* after treatment when the
+total ARG load (Task 2) dropped? Which phyla and genera carry the genes? Are any of them
+ESKAPEE or other known pathogens, or are they environmental bacteria?
+
+::: {.answer}
+**Answer 40.**
+:::
+
+**Question 41.** What fraction of the MAGs could be classified to species? What does a MAG
+with a genus name like `JADJSS01` mean? Why does short-read assembly of a complex community
+yield so few species-level MAGs, and what does that mean for assigning a gene to "a
+pathogen"?
+
+::: {.answer}
+**Answer 41.**
+:::
+
+## 5.4 Compare the three routes
+
+**Question 42.** Fill a table with three columns (co-abundance, ARG contigs, MAGs) and rows:
+what is the evidence, what can it claim about the host, what does it miss (plasmids? rare
+hosts? expression?), and which route found ESKAPEE hosts in your data. Then answer research
+questions 3 to 5 in a paragraph each.
+
+::: {.answer}
+**Answer 42.**
+
+| | co-abundance | ARG contigs | MAGs |
+|---|---|---|---|
+| evidence | | | |
+| can claim | | | |
+| misses | | | |
+| ESKAPEE hosts found | | | |
+
+:::
+
+::: {.theory}
+**Theory: why the host matters.** The same gene means different things in different
+hosts: `blaOXA` in an environmental *Cloacibacterium* is background, `blaOXA-23` in
+*Acinetobacter baumannii* is a carbapenem-resistant hospital pathogen. Risk frameworks for
+environmental ARGs rank a gene by (1) whether it is on a mobile element, (2) whether it is
+already in a pathogen, and (3) whether it confers resistance to a clinically important
+drug. Metagenomic reads give (3) only; contigs and MAGs give parts of (1) and (2).
+:::
+
+## Explore (Task 5, choose at least one)
+
+::: {.explore}
+1. **AMRFinderPlus vs BLAST.** `pipeline_output/08_mags_amrfinder/blast_card/` has the
+   BLAST hits of every MAG's contigs against CARD (same format as in 5.2, no header). Apply
+   the 80/80 rule (`pident >= 80`, `length / slen >= 0.8`) and compare which MAGs carry an
+   ARG by BLAST and by AMRFinderPlus. Why do the two disagree? (Different databases,
+   protein vs nucleotide, HMM vs alignment, and the `Element type` of AMRFinderPlus.)
+2. **A MAG up close.** `pipeline_output/09_example_mag/` has one MAG from treated WW
+   (*Cloacibacterium*, 96.5 % complete) with its Prokka annotation (`.tsv`) and AMRFinderPlus
+   result. Find the beta-lactamase, then list the genes annotated before and after it on the
+   same contig (`.tsv` is in contig order). Is there a transposase, integrase or plasmid gene
+   nearby? What would that mean for mobility? Look the genus up: where does it live?
+3. **Completeness bias.** Is `n_args` related to completeness or genome size among the
+   high-quality MAGs (`cor.test(..., method = "spearman")`)? Why would incomplete MAGs miss
+   plasmid-borne genes more than chromosomal ones?
+4. **Survivors.** Are there genera with MAGs in both raw and treated WW? Do their ARG
+   profiles differ? Which genera are only in treated WW, and what do you know about them
+   (biofilm formers, disinfectant-tolerant, slow growers)?
+5. **Medium-quality bins.** Repeat the summary with the medium-quality bins included. The
+   ARG screening is missing for them, so what could you do? (`blast_card/` only covers
+   high-quality MAGs too.) Discuss what this selection does to the answer "which fraction of
+   the community carries ARGs".
+6. **Reads vs MAGs.** Which of the genes that dominate the read-based resistome (Task 3)
+   were recovered in any MAG, and which were not? What kinds of genes are missing (mobile,
+   multi-copy, from rare hosts)?
+:::
+
+```{r t5-explore}
+# Your exploration code for Task 5
+
+```
+
+::: {.answer}
+**Explore, Task 5.** What I did, what I found, what it means:
+:::
+
+# Task 6. One Health synthesis
+
+No new statistics. You bring the results of Tasks 1 to 5 together and answer:
+
+> **Should metagenomic analysis of plastispheres be included in future One Health
+> surveillance of antimicrobial resistance? Yes, no, or under which conditions?**
+
+The answer must be built on **your own numbers and figures**, not on general statements.
+A reader who has not seen Tasks 1 to 5 should still understand what you found and why it
+leads to your recommendation.
+
+## 6.1 Collect your evidence in one table
+
+The chunk below collects the headline numbers of your group in one place. Add the rows you
+need (for example the PERMANOVA R2 from Task 2, the ESKAPEE result from Task 4). Every claim
+in your synthesis should point to one of these numbers or to one of your figures.
+
+```{r t6-evidence}
+resistome_summary <- load |>
+  group_by(environment) |>
+  summarise(n = n(), median_genes = median(n_genes), median_total_rpkm = round(median(total_rpkm)), .groups = "drop")
+
+genes_only_here <- resistome |>
+  distinct(environment, gene) |>
+  add_count(gene) |>
+  filter(n == 1) |>
+  count(environment, name = "genes_only_here")
+
+top_class <- by_class |>
+  group_by(environment, drug_class_group) |>
+  summarise(rpkm = sum(rpkm), .groups = "drop") |>
+  group_by(environment) |>
+  slice_max(rpkm, n = 1) |>
+  select(environment, top_drug_class = drug_class_group)
+
+mag_summary <- hq |>
+  group_by(environment) |>
+  summarise(hq_mags = n(), pct_mags_with_arg = round(100 * mean(n_args > 0), 1), .groups = "drop")
+
+evidence <- resistome_summary |>
+  left_join(genes_only_here, by = "environment") |>
+  left_join(top_class, by = "environment") |>
+  left_join(mag_summary, by = "environment")
+evidence
+```
+
+## 6.2 The questions to answer
+
+Write one or two paragraphs per question. The bullets tell you which of your results to
+use and which concepts to bring in.
+
+### Q1. How may plastispheres contribute to the spread of resistance between environments?
+
+- Use: the genes shared between wastewater and your river samples (Task 2), the ARG-carrying
+  hosts and the mobile-element-associated genes such as `sul1`, `qacEdelta1`, `aadA` and the
+  OXA genes (Tasks 3 and 5), the contigs carrying several genes (Task 5), the MAG results.
+- Concepts: biofilms as hot spots of horizontal gene transfer (high cell density, conjugation,
+  extracellular DNA); plastic as a durable, floating, transportable surface; class 1
+  integrons as a marker of anthropogenic pollution; the difference between *a gene is present
+  on plastic* and *the gene moved because of plastic* (what would you need to show the second?).
+
+::: {.answer}
+**Q1.**
+:::
+
+### Q2. Why is wastewater an important interface between humans, animals and the environment?
+
+- Use: the raw vs treated vs river contrast in load, diversity and composition (Task 2), the
+  drug classes that dominate wastewater (Task 3), the ESKAPEE and sewage-indicator abundances
+  (Task 4).
+- Concepts: the human gut resistome ends up in sewage; selective pressure from antibiotic
+  residues; what treatment removes (cells, bulk DNA) and what it does not (relative enrichment
+  of some genes and hosts; disinfectant and heavy-metal co-selection); the effluent enters the
+  fjord, and sludge may go to land.
+
+::: {.answer}
+**Q2.**
+:::
+
+### Q3. Could the plastisphere resistome be used as an indicator in environmental surveillance?
+
+- Use: how well your data separate the environments (PERMANOVA R2, ordination), how variable
+  the replicates are (PERMDISP, the spread of your boxplots), which genes or classes would
+  make good markers (present in wastewater, absent in the river, or the reverse), and whether
+  plastic type or incubation time mattered.
+- Concepts: what a good indicator needs (sensitivity, specificity, reproducibility, cost, a
+  baseline, a defined sampling protocol); the plastisphere as a passive sampler that integrates
+  over time versus a grab water sample; targeted (qPCR) versus untargeted (metagenomic)
+  indicators.
+
+::: {.answer}
+**Q3.**
+:::
+
+### Q4. What are the strengths and limitations of metagenomics in AMR surveillance?
+
+- Use: Task 1 (depth, rarefaction, the blank, the filter thresholds, the V8 experiment), Task
+  4 (Kraken2 false positives, detection thresholds), Task 5 (three ways to link genes and
+  hosts, and what each can and cannot claim).
+- Strengths: culture-independent, untargeted (all genes and all taxa at once), data can be
+  re-analysed when databases improve, host linkage from assembled genomes, one data set
+  answers many questions.
+- Limitations: DNA is not a live cell, a gene is not expression or a resistant phenotype,
+  relative abundances (compositional data), database bias (CARD is built from clinical
+  isolates), short-read assembly loses plasmids, cost and depth (the river samples had very few
+  ARG reads even at 70 million read pairs), the many analysis choices you had to make.
+
+::: {.answer}
+**Q4.**
+:::
+
+### Q5. What additional data would you need for a more complete risk assessment?
+
+- Options to weigh: culturing and antibiotic susceptibility testing of isolates from the
+  plastic; qPCR of marker genes (cheap, quantitative, absolute copies per cm2 of plastic);
+  metatranscriptomics (which genes are expressed); long-read sequencing (plasmid context, gene
+  neighbourhoods, mobility); planktonic and sediment controls (is the plastisphere different
+  from the water?); more time points and seasons; more sites along the river; measurements of
+  antibiotic residues and metals; source tracking with human faecal markers.
+
+::: {.answer}
+**Q5.**
+:::
+
+## 6.3 Your recommendation
+
+End with an explicit answer: **yes / no / yes if ...**. State the two or three findings from
+your own data that carry most weight, and the one limitation that worries you most. A
+conditional yes with clear conditions is a perfectly good answer.
+
+::: {.answer}
+**Recommendation.**
+:::
+
+# What to hand in
+
+This document, knitted to HTML, with:
+
+1. All answer boxes filled (Questions 1-42, the clinical relevance table, Q1-Q5 and the
+   recommendation). Answers are written for a reader who knows the field but did not run
+   the code: state the numbers, the test, the interpretation.
+2. At least one Explore item per task, with your code in the Explore chunk and a short
+   write-up in the box below it.
+3. All figures with labelled axes and the same colour per environment.
+4. Every choice you made stated where you made it (filter thresholds, transformations,
+   dropped samples, seeds).
+
+Judged on (50 % analysis, 50 % interpretation):
+
+- Task 1: correct import (numbers of runs, rows and annotated genes), a defended threshold,
+  correct reading of the depth and rarefaction plots, a clear statement of which comparisons
+  your design supports, a decision about the Blank with an argument.
+- Task 2: the right statistics reported (medians, chi-square, adjusted p, R2, pseudo-F,
+  stress or explained variance), correct handling of the empty sample and of dispersion,
+  and abundance, diversity and composition kept apart in the interpretation.
+- Task 3: explicit handling of multi-class strings, per-class tests with a justified
+  correction, correct top genes with mechanism and drug, and a concrete, referenced clinical
+  statement.
+- Task 4: a correct Bracken import with the right denominator, the threshold discussion
+  with numbers, justified use of Kruskal-Wallis and Fisher's exact test, and a precise
+  statement of what metagenomic detection does and does not mean.
+- Task 5: a correct MAG table (bins, screened, quality classes; MAGs counted, not gene
+  rows), a justified contingency test, the distinction between association and physical
+  linkage, and at least three limitations of MAG-based host assignment.
+- Task 6: every claim tied to a number or figure of your own, balanced strengths and
+  limitations, specific additional data, and an explicit recommendation.
+
+# Session information
+
+```{r session}
+sessionInfo()
+```
