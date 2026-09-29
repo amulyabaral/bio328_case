@@ -1,6 +1,7 @@
 # Plastisphere resistome case (BIO328)
 
-In this case you analyse the real pipeline output of Witsø et al. (2025), *Plastispheres as
+Dear bio328-ers, 
+In this case you will analyse the real pipeline output of Witsø et al. (2025), *Plastispheres as
 reservoirs of antimicrobial resistance: Insights from metagenomic analyses across aquatic
 environments*, PLOS One 20(9): e0330754, <https://doi.org/10.1371/journal.pone.0330754>.
 
