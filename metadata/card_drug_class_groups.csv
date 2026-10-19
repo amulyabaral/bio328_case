@@ -1,0 +1,37 @@
+card_drug_class,drug_class_group
+aminoglycoside antibiotic,Aminoglycosides
+penam,Beta-lactams
+penem,Beta-lactams
+cephalosporin,Beta-lactams
+cephamycin,Beta-lactams
+carbapenem,Beta-lactams
+monobactam,Beta-lactams
+oxacephem,Beta-lactams
+macrolide antibiotic,Macrolides
+lincosamide antibiotic,Lincosamides
+streptogramin antibiotic,Streptogramins
+streptogramin A antibiotic,Streptogramins
+streptogramin B antibiotic,Streptogramins
+tetracycline antibiotic,Tetracyclines
+glycylcycline,Tetracyclines
+glycopeptide antibiotic,Glycopeptides
+sulfonamide antibiotic,Sulfonamides
+sulfone antibiotic,Sulfonamides
+diaminopyrimidine antibiotic,Trimethoprim
+fluoroquinolone antibiotic,Fluoroquinolones
+phenicol antibiotic,Phenicols
+rifamycin antibiotic,Rifamycins
+peptide antibiotic,Peptides
+oxazolidinone antibiotic,Oxazolidinones
+disinfecting agents and antiseptics,Disinfectants
+aminocoumarin antibiotic,Other
+mupirocin-like antibiotic,Other
+phosphonic acid antibiotic,Other
+pleuromutilin antibiotic,Other
+nucleoside antibiotic,Other
+nitrofuran antibiotic,Other
+nitroimidazole antibiotic,Other
+isoniazid-like antibiotic,Other
+bicyclomycin-like antibiotic,Other
+fusidane antibiotic,Other
+antibacterial free fatty acids,Other

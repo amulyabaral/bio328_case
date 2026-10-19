@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+FBPJLAOF_00610	aac(6')	aminoglycoside 6'-N-acetyltransferase	core	AMR	AMR	AMINOGLYCOSIDE	AMINOGLYCOSIDE	HMM	184	184	100.00	84.24	184	WP_071846334.1	aminoglycoside 6'-N-acetyltransferase	NF012165.0	aminoglycoside 6'-N-acetyltransferase

@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+ABCJOKBN_01916	mph	Mph(E)/Mph(G) family macrolide 2'-phosphotransferase	core	AMR	AMR	MACROLIDE	MACROLIDE	HMM	295	294	100.00	75.51	294	WP_014386803.1	Mph(E)/Mph(G) family macrolide 2'-phosphotransferase	NF000241.1	Mph(E)/Mph(G) family macrolide 2'-phosphotransferase

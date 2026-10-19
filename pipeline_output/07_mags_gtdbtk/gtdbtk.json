@@ -1,0 +1,120 @@
+{
+    "version": "2.3.2",
+    "command_line": "gtdbtk classify_wf --genome_dir /mnt/project/PLASTPATH/high_quality_bins/ --out /mnt/project/PLASTPATH//gtdbtk_bins_output --cpus 64 --mash_db /mnt/project/PLASTPATH/microbe_gen/mash_db --extension fa",
+    "database_version": "r214",
+    "database_path": "/mnt/project/PLASTPATH/gtdb/release214",
+    "steps": [
+        {
+            "name": "ANI screen",
+            "output_dir": "/mnt/project/PLASTPATH//gtdbtk_bins_output",
+            "starts_at": "2024-04-30T09:10:33.948940",
+            "ends_at": "2024-04-30T10:08:19.791895",
+            "duration": "0:57:45",
+            "status": "completed",
+            "genome_dir": "/mnt/project/PLASTPATH/high_quality_bins/",
+            "batchfile": null,
+            "mash_k": 16,
+            "mash_s": 5000,
+            "mash_v": 1.0,
+            "mash_max_dist": 0.15,
+            "mash_db": "/mnt/project/PLASTPATH/microbe_gen/mash_db",
+            "output_files": {
+                "bac120": "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/ani_screen/gtdbtk.bac120.ani_summary.tsv",
+                "ar53": "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/ani_screen/gtdbtk.ar53.ani_summary.tsv"
+            }
+        },
+        {
+            "name": "identify",
+            "output_dir": "/mnt/project/PLASTPATH//gtdbtk_bins_output",
+            "starts_at": "2024-04-30T10:08:19.837568",
+            "ends_at": "2024-04-30T10:11:20.439237",
+            "duration": "0:03:00",
+            "status": "completed",
+            "genes": false,
+            "extension": "fa",
+            "write_single_copy_genes": false,
+            "genome_dir": "/mnt/project/PLASTPATH/high_quality_bins/",
+            "batchfile": null,
+            "output_files": {
+                "all": [
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/identify/gtdbtk.failed_genomes.tsv",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/identify/gtdbtk.translation_table_summary.tsv"
+                ],
+                "ar53": [
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/identify/gtdbtk.ar53.markers_summary.tsv"
+                ],
+                "bac120": [
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/identify/gtdbtk.bac120.markers_summary.tsv"
+                ]
+            }
+        },
+        {
+            "name": "align",
+            "output_dir": "/mnt/project/PLASTPATH//gtdbtk_bins_output",
+            "starts_at": "2024-04-30T10:11:20.439654",
+            "ends_at": "2024-04-30T10:16:04.566515",
+            "duration": "0:04:44",
+            "status": "completed",
+            "identify_dir": "/mnt/project/PLASTPATH//gtdbtk_bins_output",
+            "skip_gtdb_refs": false,
+            "taxa_filter": null,
+            "min_perc_aa": 10,
+            "custom_msa_filters": false,
+            "skip_trimming": false,
+            "rnd_seed": null,
+            "cols_per_gene": null,
+            "min_consensus": null,
+            "max_consensus": null,
+            "min_perc_taxa": null,
+            "outgroup_taxon": null,
+            "output_files": {
+                "bac120": [
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/align/gtdbtk.bac120.filtered.tsv",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/align/gtdbtk.bac120.msa.fasta",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/align/gtdbtk.bac120.user_msa.fasta"
+                ]
+            }
+        },
+        {
+            "name": "classify",
+            "output_dir": "/mnt/project/PLASTPATH//gtdbtk_bins_output",
+            "starts_at": "2024-04-30T10:16:04.566880",
+            "ends_at": "2024-04-30T11:37:31.303714",
+            "duration": "1:21:26",
+            "status": "completed",
+            "align_dir": "/mnt/project/PLASTPATH//gtdbtk_bins_output",
+            "genome_dir": "/mnt/project/PLASTPATH/high_quality_bins/",
+            "batchfile": null,
+            "scratch_dir": null,
+            "debug_option": false,
+            "full_tree": false,
+            "skip_ani_screen": true,
+            "no_mash": false,
+            "mash_k": 16,
+            "mash_v": 1.0,
+            "mash_s": 5000,
+            "mash_db": "/mnt/project/PLASTPATH/microbe_gen/mash_db",
+            "mash_max_dist": 0.15,
+            "output_files": {
+                "ar53": [
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.ar53.summary.tsv"
+                ],
+                "bac120": [
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.backbone.bac120.classify.tree",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.bac120.classify.tree.4.tree",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.bac120.classify.tree.1.tree",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.bac120.classify.tree.3.tree",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.bac120.classify.tree.5.tree",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.bac120.classify.tree.7.tree",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.bac120.classify.tree.2.tree",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.bac120.classify.tree.8.tree",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.bac120.classify.tree.6.tree",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.bac120.tree.mapping.tsv",
+                    "/mnt/project/PLASTPATH//gtdbtk_bins_output/classify/gtdbtk.bac120.summary.tsv"
+                ]
+            }
+        }
+    ],
+    "output_dir": "/mnt/project/PLASTPATH//gtdbtk_bins_output",
+    "path": "/mnt/project/PLASTPATH//gtdbtk_bins_output/gtdbtk.json"
+}

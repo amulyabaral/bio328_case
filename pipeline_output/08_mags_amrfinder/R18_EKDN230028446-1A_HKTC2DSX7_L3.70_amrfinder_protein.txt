@@ -1,0 +1,4 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+FEPPCBBH_00047	blaOXA	class D beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	284	289	84.43	47.29	258	WP_075071939.1	class D beta-lactamase	NF012161.0	class D beta-lactamase
+FEPPCBBH_02037	bla	class A beta-lactamase, subclass A2	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	245	304	81.25	60.73	247	WP_064964607.1	class A beta-lactamase, subclass A2	NF012099.1	class A beta-lactamase, subclass A2
+FEPPCBBH_04266	arr	NAD(+)--rifampin ADP-ribosyltransferase	core	AMR	AMR	RIFAMYCIN	RIFAMYCIN	HMM	148	143	87.41	61.60	125	WP_063842202.1	NAD(+)--rifampin ADP-ribosyltransferase	NF033144.1	NAD(+)--rifampin ADP-ribosyltransferase

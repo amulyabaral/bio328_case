@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+ALIIPAID_00393	blaOXA-5	oxacillin-hydrolyzing class D beta-lactamase OXA-5	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	ALLELEP	267	267	100.00	100.00	267	WP_032488483.1	oxacillin-hydrolyzing class D beta-lactamase OXA-5	NF040527.2	OXA-5 family class D beta-lactamase

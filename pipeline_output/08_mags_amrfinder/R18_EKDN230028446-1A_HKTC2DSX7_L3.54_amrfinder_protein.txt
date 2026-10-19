@@ -1,0 +1,4 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+DOPPPAML_00388	blaOXA	class D beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	BLASTP	264	264	100.00	94.70	264	WP_021139936.1	class D beta-lactamase OXA-956	NF000270.1	class D beta-lactamase
+DOPPPAML_02344	ampC	FOX/MOX family class C beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	382	382	99.74	86.88	381	WP_032489067.1	FOX/MOX family class C beta-lactamase	NF012172.1	FOX/MOX family class C beta-lactamase
+DOPPPAML_03762	vat	Vat family streptogramin A O-acetyltransferase	core	AMR	AMR	STREPTOGRAMIN	STREPTOGRAMIN	HMM	211	221	92.31	70.59	204	WP_005164767.1	Vat family streptogramin A O-acetyltransferase	NF000311.1	Vat family streptogramin A O-acetyltransferase

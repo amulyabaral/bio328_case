@@ -1,0 +1,38 @@
+sample,environment,env_type,site,month,sampling_date,plastic,duration_weeks,sequencing_run
+V1,Raw WW,Raw WW,VEAS wastewater treatment plant,September,2021-09-28,PP,2,V1_EKDN230028453-1A_HKTTNDSX7_L4
+V2,Raw WW,Raw WW,VEAS wastewater treatment plant,September,2021-09-28,PVC,2,V2_EKDN230028454-1A_HKTTNDSX7_L4
+V3,Raw WW,Raw WW,VEAS wastewater treatment plant,September,2021-09-28,PEHD,2,V3_EKDN230028455-1A_HKTC2DSX7_L4
+V4,Raw WW,Raw WW,VEAS wastewater treatment plant,August,2021-08-27,PP,4,V4_EKDN230028456-1A_HKTTNDSX7_L4
+V5,Raw WW,Raw WW,VEAS wastewater treatment plant,August,2021-08-27,PVC,4,V5_EKDN230028457-1A_HKTTNDSX7_L4
+V6,Raw WW,Raw WW,VEAS wastewater treatment plant,August,2021-08-27,PEHD,4,V6_EKDN230028458-1A_HKTTNDSX7_L4
+R1,Lier river loc1,River,Lier river loc1,June,2021-06-17,PP,2,R1_EKDN230028429-1A_HKTC2DSX7_L3
+R2,Lier river loc1,River,Lier river loc1,June,2021-06-17,PVC,2,R2_EKDN230028430-1A_HKTC2DSX7_L3
+R3,Lier river loc1,River,Lier river loc1,June,2021-06-17,PEHD,2,R3_EKDN230028431-1A_HKTC2DSX7_L3
+R7,Lier river loc1,River,Lier river loc1,June,2021-06-28,PP,4,R7_EKDN230028435-1A_HKTC2DSX7_L3
+R8,Lier river loc1,River,Lier river loc1,June,2021-06-28,PVC,4,R8_EKDN230028436-1A_HKTC2DSX7_L3
+R9,Lier river loc1,River,Lier river loc1,June,2021-06-28,PEHD,4,R9_EKDN230028437-1A_HKTC2DSX7_L3
+R13,Lier river loc1,River,Lier river loc1,September,2021-09-14,PP,2,R13_EKDN230028441-1A_HKTC2DSX7_L3
+R14,Lier river loc1,River,Lier river loc1,September,2021-09-14,PVC,2,R14_EKDN230028442-1A_HKTC2DSX7_L3
+R15,Lier river loc1,River,Lier river loc1,September,2021-09-14,PEHD,2,R15_EKDN230028443-1A_HKTC2DSX7_L3
+R19,Lier river loc1,River,Lier river loc1,September,2021-09-28,PP,4,R19_EKDN230028447-1A_HKTC2DSX7_L3
+R20,Lier river loc1,River,Lier river loc1,September,2021-09-28,PVC,4,R20_EKDN230028448-1A_HKTC2DSX7_L3
+R21,Lier river loc1,River,Lier river loc1,September,2021-09-28,PEHD,4,R21_EKDN230028449-1A_HKTC2DSX7_L3
+R4,Lier river loc2,River,Lier river loc2,June,2021-06-17,PP,2,R4_EKDN230028432-1A_HKTC2DSX7_L3
+R5,Lier river loc2,River,Lier river loc2,June,2021-06-17,PVC,2,R5_EKDN230028433-1A_HKTC2DSX7_L3
+R6,Lier river loc2,River,Lier river loc2,June,2021-06-17,PEHD,2,R6_EKDN230028434-1A_HKTC2DSX7_L3
+R10,Lier river loc2,River,Lier river loc2,June,2021-06-28,PP,4,R10_EKDN230028438-1A_HKTC2DSX7_L3
+R11,Lier river loc2,River,Lier river loc2,June,2021-06-28,PVC,4,R11_EKDN230028439-1A_HKTC2DSX7_L3
+R12,Lier river loc2,River,Lier river loc2,June,2021-06-28,PEHD,4,R12_EKDN230028440-1A_HKTC2DSX7_L3
+R16,Lier river loc2,River,Lier river loc2,September,2021-09-14,PP,2,R16_EKDN230028444-1A_HKTC2DSX7_L3
+R17,Lier river loc2,River,Lier river loc2,September,2021-09-14,PVC,2,R17_EKDN230028445-1A_HKTC2DSX7_L3
+R18,Lier river loc2,River,Lier river loc2,September,2021-09-14,PEHD,2,R18_EKDN230028446-1A_HKTC2DSX7_L3
+R22,Lier river loc2,River,Lier river loc2,September,2021-09-28,PP,4,R22_EKDN230028450-1A_HKTC2DSX7_L3
+R23,Lier river loc2,River,Lier river loc2,September,2021-09-28,PVC,4,R23_EKDN230028451-1A_HKTC2DSX7_L4
+R24,Lier river loc2,River,Lier river loc2,September,2021-09-28,PEHD,4,R24_EKDN230028452-1A_HKTTNDSX7_L4
+V7,Treated WW,Treated WW,VEAS wastewater treatment plant,September,2021-09-28,PP,2,V7_EKDN230028459-1A_HKTTNDSX7_L4
+V8,Treated WW,Treated WW,VEAS wastewater treatment plant,September,2021-09-28,PVC,2,V8_EKDN230028460-1A_HJH72DSX7_L2
+V9,Treated WW,Treated WW,VEAS wastewater treatment plant,September,2021-09-28,PEHD,2,V9_EKDN230028461-1A_HKTTNDSX7_L4
+V10,Treated WW,Treated WW,VEAS wastewater treatment plant,September,2021-09-28,PP,4,V10_EKDN230028462-1A_HKTTNDSX7_L4
+V11,Treated WW,Treated WW,VEAS wastewater treatment plant,September,2021-09-28,PVC,4,V11_EKDN230028463-1A_HKTTNDSX7_L4
+V12,Treated WW,Treated WW,VEAS wastewater treatment plant,September,2021-09-28,PEHD,4,V12_EKDN230028464-1A_HKTTNDSX7_L4
+Blank,Blank control,Control,Laboratory,NA,NA,NA,NA,Blank_EKDN230028465-1A_HKTCJDSX7_L4

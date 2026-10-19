@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+GNHMFPOK_03183	blaOXA-2	oxacillin-hydrolyzing class D beta-lactamase OXA-2	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	ALLELEP	275	275	100.00	100.00	275	WP_001007673.1	oxacillin-hydrolyzing class D beta-lactamase OXA-2	NF000267.2	OXA-2 family class D beta-lactamase

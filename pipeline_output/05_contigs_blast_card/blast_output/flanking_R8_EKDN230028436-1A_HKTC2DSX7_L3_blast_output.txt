@@ -1,0 +1,2 @@
+qseqid	sseqid	salltitles	length	pident	evalue	qlen	slen	qstart	qend	sstart	send	length_slen_ratio	flanking_left	flanking_right
+k141_175992	gb|DQ149925.1|+|188-521|ARO:3005098|qacL	gb|DQ149925.1|+|188-521|ARO:3005098|qacL [Vibrio cholerae] 	333	99.099	8.91e-171	5554	333	3948	4280	333	1	1	3947	1274

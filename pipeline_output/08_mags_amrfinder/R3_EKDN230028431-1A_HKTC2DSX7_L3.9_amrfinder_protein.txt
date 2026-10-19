@@ -1,0 +1,4 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+KMIAGLMD_00350	bla	class A beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	325	319	89.97	34.45	299	WP_063842272.1	class A beta-lactamase	NF033103.1	class A beta-lactamase
+KMIAGLMD_01791	aac(6')	aminoglycoside 6'-N-acetyltransferase	core	AMR	AMR	AMINOGLYCOSIDE	AMINOGLYCOSIDE	HMM	147	148	94.59	53.57	140	WP_026868862.1	aminoglycoside 6'-N-acetyltransferase	NF043067.1	aminoglycoside 6'-N-acetyltransferase
+KMIAGLMD_02412	bla	subclass B3 metallo-beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	300	301	94.68	51.51	299	WP_213603971.1	subclass B3 metallo-beta-lactamase	NF033105.1	subclass B3 metallo-beta-lactamase

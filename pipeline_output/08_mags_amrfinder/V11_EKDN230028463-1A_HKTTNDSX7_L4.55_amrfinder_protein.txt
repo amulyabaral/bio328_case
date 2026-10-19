@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+EJEMBLAO_00485	blaOXA-1239	carbapenem-hydrolyzing class D beta-lactamase OXA-1239	core	AMR	AMR	BETA-LACTAM	CEPHALOSPORIN	ALLELEP	269	269	100.00	100.00	269	WP_338424127.1	carbapenem-hydrolyzing class D beta-lactamase OXA-1239	NF045839.1	OXA-18 family class D beta-lactamase

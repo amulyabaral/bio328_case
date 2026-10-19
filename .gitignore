@@ -1,0 +1,8 @@
+# RStudio files and knitted output
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*_cache/
+*_files/
+plastpath_case.html

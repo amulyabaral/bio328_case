@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+OMEANDFG_04032	cml	Cmx/CmrA family chloramphenicol efflux MFS transporter	core	AMR	AMR	PHENICOL	CHLORAMPHENICOL	HMM	384	412	91.99	49.60	379	WP_063844229.1	Cmx/CmrA family chloramphenicol efflux MFS transporter	NF033135.1	Cmx/CmrA family chloramphenicol efflux MFS transporter

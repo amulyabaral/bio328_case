@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+KBMIPHGE_01568	ampC	class C beta-lactamase	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	HMM	384	380	98.16	61.17	376	WP_011339581.1	class C beta-lactamase	NF033085.1	class C beta-lactamase

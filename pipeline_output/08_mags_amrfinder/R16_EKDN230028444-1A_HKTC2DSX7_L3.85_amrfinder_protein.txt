@@ -1,0 +1,2 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity to reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+BFOGOIAI_02117	aac(3)-I	AAC(3)-I family aminoglycoside 3-N-acetyltransferase	core	AMR	AMR	AMINOGLYCOSIDE	GENTAMICIN	HMM	158	165	90.30	55.70	149	WP_063840260.1	AAC(3)-I family aminoglycoside 3-N-acetyltransferase	NF033083.0	AAC(3)-I family aminoglycoside 3-N-acetyltransferase
