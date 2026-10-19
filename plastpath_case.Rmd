@@ -240,7 +240,7 @@ head(hits$template, 3)
 
 The template name contains the ARO accession (`ARO:3002835`), which is the key into
 `aro_index.tsv` of the CARD release: gene name, gene family, drug class and mechanism. A
-gene can have several drug classes, separated by `;`; you deal with that in Task 3.
+gene can have several drug classes, separated by `;`; you will deal with that in Task 3.
 
 ```{r t1-aro}
 aro <- read_tsv("pipeline_output/03_card_database/aro_index.tsv", show_col_types = FALSE) |>
